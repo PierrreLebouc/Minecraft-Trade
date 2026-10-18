@@ -642,6 +642,12 @@ let S;
 try { S = JSON.parse(localStorage.getItem(KEY)); } catch {}
 if (!S || typeof S !== "object") S = {};
 S.owned ||= {}; S.villagers ||= []; S.seq ||= 1;
+// v2 : zone constructible agrandie de 5 cases de chaque côté → on décale les bibliothécaires existants
+function migrate(st) {
+  if (st.mapV !== 2) { for (const v of st.villagers) { v.c += 5; v.r += 5; } st.mapV = 2; }
+  return st;
+}
+migrate(S);
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
 const owned = id => S.owned[id] || 0;
 const offers = id => S.villagers.flatMap(v => v.books.filter(b => b.e === id).map(b => ({ v, lvl: b.lvl })));
@@ -893,7 +899,7 @@ mq.addEventListener("blur", () => setTimeout(() => { msug.hidden = true; if (foc
 // ================= Carte isométrique =================
 // Monde en blocs cubiques : zone constructible plate, relief derrière et sur les côtés,
 // plage + rivière devant, puis l'autre rive. La caméra ne montre jamais le bord du monde.
-const N = 40, A = 6, B = 19;               // grille N×N, zone constructible [A..B]
+const N = 50, A = 6, B = 29;               // grille N×N, zone constructible [A..B] (24×24)
 const TW = 64, TH = 32, BH = 32, BASE = -3; // BH = TW/2 → blocs cubiques
 const inPlay = (c, r) => c >= A && r >= A && c <= B && r <= B;
 
@@ -920,7 +926,7 @@ for (let r = 0; r < N; r++) {
       const n = noise(c, r);
       const back = 1 - (c + r) / (2 * N - 2);
       // plus on s'écarte de l'axe central, plus le relief monte : la ligne de crête reste à l'horizontale
-      let h = m * .6 + m * back * 1.0 + (m / A) * Math.abs(c - r) * .42 + n * 1.1 + (hash(c, r) - .5) * 1.4 - Math.max(front, 0) * .9;
+      let h = m * .6 + m * back * 1.0 + (m / A) * Math.min(Math.abs(c - r), 34) * .42 + n * 1.1 + (hash(c, r) - .5) * 1.4 - Math.max(front, 0) * .9;
       h = Math.round(h);
       if (h >= 1) {
         let mat;
@@ -942,7 +948,7 @@ const decor = [];
   for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
     const t = terrain[r][c];
     if (t.mat === "grass" && t.h <= 3 && !t.shore) {
-      const inForest = Math.hypot(c - 3, r - 15) < 3.6;
+      const inForest = Math.hypot(c - 3, r - 21) < 4;
       if (inForest && rand() < .75) decor.push({ c, r, type: rand() < .5 ? "spruce" : "oak" });
       else if (!inForest && rand() < .04) decor.push({ c, r, type: rand() < .5 ? "spruce" : "bush" });
     } else if (t.shore && rand() < .035) decor.push({ c, r, type: rand() < .6 ? "oak" : "bush" });
@@ -1514,14 +1520,14 @@ document.getElementById("file").onchange = async ev => {
   try {
     const d = JSON.parse(await f.text());
     if (!d || typeof d.owned !== "object" || !Array.isArray(d.villagers)) throw 0;
-    S = { owned: d.owned, villagers: d.villagers, seq: d.seq || (Math.max(0, ...d.villagers.map(v => v.id)) + 1) };
+    S = migrate({ owned: d.owned, villagers: d.villagers, mapV: d.mapV, seq: d.seq || (Math.max(0, ...d.villagers.map(v => v.id)) + 1) });
     selectedVid = null; commit(); toast("Sauvegarde importée");
   } catch { toast("Fichier invalide"); }
   ev.target.value = "";
 };
 document.getElementById("reset").onclick = async () => {
   menu.hidden = true;
-  if (await ask("Tous les enchantements cochés et tous les bibliothécaires seront effacés.", "Tout effacer", "Tout réinitialiser ?")) { S = { owned: {}, villagers: [], seq: 1 }; selectedVid = null; commit(); }
+  if (await ask("Tous les enchantements cochés et tous les bibliothécaires seront effacés.", "Tout effacer", "Tout réinitialiser ?")) { S = { owned: {}, villagers: [], seq: 1, mapV: 2 }; selectedVid = null; commit(); }
 };
 
 const askDlg = document.getElementById("ask-dlg");
