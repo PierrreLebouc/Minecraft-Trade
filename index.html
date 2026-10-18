@@ -1,0 +1,1597 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grimoire</title>
+<meta name="description" content="Suivi des enchantements Minecraft Bedrock et organisation du breeder à villageois.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Lilita+One&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f6fb;
+    --surface: #ffffff;
+    --surface-2: #f9fafc;
+    --ink: #1d2233;
+    --muted: #6b7287;
+    --faint: #a3a9ba;
+    --line: #e6e8f0;
+    --accent: #6c5ce7;
+    --accent-soft: #efecff;
+    --green: #22b26b;
+    --green-soft: #e3f7ec;
+    --blue: #4a7cf0;
+    --blue-soft: #e7eefe;
+    --amber: #f0a020;
+    --amber-soft: #fff3dc;
+    --red: #ec5b5b;
+    --red-soft: #fdeaea;
+    --radius: 16px;
+    --shadow: 0 1px 2px rgba(20,24,40,.04), 0 6px 20px rgba(20,24,40,.06);
+
+    --c-armor: #5b8def;
+    --c-melee: #ef6461;
+    --c-mace: #9b7bea;
+    --c-tool: #f2a541;
+    --c-bow: #3fbf7f;
+    --c-trident: #23b2ad;
+    --c-fish: #46aee3;
+    --c-misc: #e46aa9;
+    --c-curse: #8a8f9c;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+
+  body { overflow: hidden; }
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--surface); display: grid; place-items: center; color: var(--muted); flex: none;
+  }
+  .icon-btn:hover { color: var(--ink); border-color: #d4d7e3; }
+  .menu { position: relative; }
+  .menu-list {
+    position: absolute; right: 0; top: 44px; min-width: 220px; padding: 6px; z-index: 5;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+  }
+  .menu-list button {
+    display: block; width: 100%; text-align: left; border: 0; background: none;
+    padding: 9px 12px; border-radius: 8px; font-weight: 500;
+  }
+  .menu-list button:hover { background: var(--surface-2); }
+  .menu-list button.danger { color: var(--red); }
+
+  .glass {
+    background: rgba(255,255,255,.94); backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,.7); border-radius: 18px;
+    box-shadow: 0 10px 40px rgba(15,30,60,.22);
+  }
+
+  /* bouton livre enchanté */
+  .book-btn {
+    position: fixed; top: 16px; right: 16px; z-index: 6;
+    width: 62px; height: 62px; border-radius: 18px; border: 0; padding: 0;
+    background: linear-gradient(145deg, #7b5cff, #4a2fc0); display: grid; place-items: center;
+    box-shadow: 0 8px 24px rgba(74,47,192,.45), inset 0 2px 0 rgba(255,255,255,.25);
+    transition: transform .15s; overflow: hidden;
+  }
+  .book-btn:hover { transform: translateY(-2px) scale(1.03); }
+  .book-btn::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.45) 50%, transparent 65%);
+    background-size: 250% 100%; animation: glint 3.2s linear infinite;
+  }
+  @keyframes glint { from { background-position: 150% 0; } to { background-position: -100% 0; } }
+  .book-btn .badge {
+    position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
+    font-size: 10px; font-weight: 800; color: #fff; background: rgba(0,0,0,.35); padding: 0 6px; border-radius: 99px; white-space: nowrap;
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    border: 1px solid var(--line); background: var(--surface);
+    padding: 8px 14px; border-radius: 10px; font-weight: 600; font-size: 14px;
+  }
+  .btn:hover { border-color: #d0d4e2; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 4px 12px rgba(108,92,231,.3); }
+  .btn.primary:hover { filter: brightness(1.07); }
+  .btn.primary.on { background: var(--amber); border-color: var(--amber); box-shadow: 0 4px 12px rgba(240,160,32,.3); }
+  .btn.ghost-danger { color: var(--red); }
+  .btn.ghost-danger:hover { background: var(--red-soft); border-color: #f6c9c9; }
+
+  /* ---------- Carte latérale ---------- */
+  .side {
+    position: fixed; left: 16px; top: 16px; bottom: 16px; width: 340px; z-index: 5;
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  .side-head { padding: 16px 16px 12px; border-bottom: 1px solid var(--line); }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; letter-spacing: -.01em; margin-bottom: 4px; }
+  .brand-logo { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: linear-gradient(135deg, #7b5cff, #3fa2f0); }
+  .side-head p { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+  .sheet-toggle { display: none; }
+  .side { transition: transform .28s cubic-bezier(.3,.7,.2,1); }
+  body.side-collapsed .side { transform: translateX(calc(-100% - 16px)); }
+  .side-tab {
+    position: absolute; top: 22px; right: -38px; width: 38px; height: 60px; padding: 0 0 0 2px;
+    border: 0; border-radius: 0 14px 14px 0; display: grid; place-items: center;
+    background: rgba(255,255,255,.94); color: var(--accent);
+    box-shadow: 6px 6px 18px rgba(15,30,60,.18);
+  }
+  .side-tab svg { transition: transform .28s; }
+  body.side-collapsed .side-tab svg { transform: rotate(180deg); }
+  body.side-collapsed .map-toolbar, body.side-collapsed .map-hint { left: 58px; }
+  .map-toolbar, .map-hint { transition: left .28s cubic-bezier(.3,.7,.2,1); }
+  .side-foot { padding: 10px 12px 12px; border-top: 1px solid var(--line); }
+  .cull-btn {
+    width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-weight: 700; font-size: 14px; text-align: left;
+  }
+  .cull-btn:hover { border-color: #d0d4e2; background: var(--surface-2); }
+  .cull-btn .ic { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--amber-soft); color: #c27b0c; flex: none; }
+  .cull-btn span { flex: 1; }
+  .cull-btn b { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--amber); color: #fff; }
+  .cull-btn b.zero { background: #eef0f6; color: var(--muted); }
+
+  /* pop-up bibliothécaires superflus */
+  dialog.mid { width: min(560px, calc(100vw - 32px)); max-height: 86vh; }
+  dialog.mid[open] { display: flex; flex-direction: column; }
+  .mid-head { padding: 20px 22px 12px; display: flex; gap: 12px; align-items: flex-start; }
+  .mid-head h3 { margin: 0 0 4px; font-size: 19px; }
+  .mid-head p { margin: 0; color: var(--muted); font-size: 13px; }
+  .mid-body { overflow-y: auto; padding: 4px 22px 22px; }
+  .cull-sum { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--green-soft); color: #137a48; font-weight: 600; font-size: 14px; margin-bottom: 14px; }
+  .cull-sum span { flex: 1; }
+  .cull-sum.none { background: #eef0f6; color: var(--muted); }
+  .cv { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; background: var(--surface); }
+  .cv-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .cv-top strong { flex: 1; font-size: 15px; }
+  .cv .tag { font-size: 11px; }
+  .tag.ok { background: var(--green-soft); color: var(--green); }
+  .tag.alone { background: var(--amber-soft); color: #b9740a; }
+  .cv-book { display: flex; gap: 8px; align-items: baseline; font-size: 13px; padding: 2px 0; }
+  .cv-book i { width: 8px; height: 11px; border-radius: 2px; background: var(--c); flex: none; transform: translateY(1px); }
+  .cv-book b { font-weight: 700; }
+  .cv-book span { color: var(--muted); }
+  .cv-acts { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+  .cv-acts .btn { padding: 6px 12px; font-size: 13px; }
+  .search {
+    width: 100%; padding: 9px 12px 9px 36px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23a3a9ba' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='5'/%3E%3Cpath d='m11 11 3 3'/%3E%3C/svg%3E") no-repeat 12px center;
+    outline: none;
+  }
+  .search:focus { border-color: var(--accent); background-color: #fff; box-shadow: 0 0 0 3px var(--accent-soft); }
+  .side-list { overflow-y: auto; padding: 6px 8px 12px; flex: 1; }
+  .side-cat { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); padding: 12px 8px 4px; display: flex; align-items: center; gap: 8px; }
+  .side-cat i { width: 8px; height: 8px; border-radius: 3px; background: var(--c); }
+  .row {
+    display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 10px;
+    cursor: grab; user-select: none; border: 1px solid transparent;
+  }
+  .row:hover { background: var(--surface-2); }
+  .row.sel { background: var(--accent-soft); border-color: #dcd6ff; }
+  .row.nov { cursor: default; opacity: .55; }
+  .row .rname { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .rname b { color: var(--c); font-weight: 800; margin-left: 2px; }
+  .row .rcur { font-size: 12px; font-weight: 700; color: var(--blue); background: var(--blue-soft); padding: 1px 7px; border-radius: 99px; }
+  .row .rvill { font-size: 12px; font-weight: 700; color: var(--green); background: var(--green-soft); padding: 1px 7px; border-radius: 99px; display: inline-flex; gap: 4px; align-items: center; }
+  .mini-tick {
+    width: 22px; height: 22px; border-radius: 7px; flex: none; padding: 0;
+    border: 2px solid #d5d9e5; background: #fff; display: grid; place-items: center;
+  }
+  .mini-tick svg { opacity: 0; }
+  .mini-tick.max { background: var(--green); border-color: var(--green); }
+  .mini-tick.low { background: var(--blue); border-color: var(--blue); }
+  .mini-tick.max svg, .mini-tick.low svg { opacity: 1; }
+
+  /* Map */
+  .map-wrap {
+    position: fixed; inset: 0; overflow: hidden;
+    background: linear-gradient(180deg, #4f8de6 0%, #86bdf1 40%, #c9e3f8 100%);
+  }
+  .map-wrap svg.map { width: 100%; height: 100%; display: block; touch-action: none; }
+  .map-wrap.placing svg.map { cursor: crosshair; }
+  .map-toolbar { position: absolute; top: 16px; left: 372px; right: 96px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; z-index: 3; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 99px;
+    background: rgba(255,255,255,.92); border: 1px solid rgba(0,0,0,.06); font-weight: 600; font-size: 13px;
+    box-shadow: 0 2px 8px rgba(20,40,60,.08);
+  }
+  .msearch { position: relative; flex: 0 1 340px; min-width: 0; }
+  .msearch input {
+    width: 100%; height: 40px; padding: 0 14px 0 38px; border-radius: 99px; border: 1px solid rgba(0,0,0,.06); outline: none;
+    background: rgba(255,255,255,.95) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%236c5ce7' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='5'/%3E%3Cpath d='m11 11 3 3'/%3E%3C/svg%3E") no-repeat 14px center;
+    box-shadow: 0 2px 10px rgba(20,40,60,.12); font-weight: 600; font-size: 14px;
+  }
+  .msearch input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), 0 2px 10px rgba(20,40,60,.12); }
+  .msug { position: absolute; top: 46px; left: 0; right: 0; min-width: 300px; padding: 6px; max-height: 60vh; overflow-y: auto; }
+  .sug { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; cursor: pointer; }
+  .sug.on, .sug:hover { background: var(--accent-soft); }
+  .sug i { width: 10px; height: 13px; border-radius: 2px; background: var(--c); flex: none; box-shadow: inset 2px 0 0 rgba(0,0,0,.2); }
+  .sug .sn { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sug .sn b { color: var(--c); }
+  .sug .sm { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+  .sug .sm.yes { background: var(--green-soft); color: var(--green); }
+  .sug .sm.no { background: #f1f2f5; color: var(--muted); }
+  .sug .own { color: var(--green); font-size: 12px; font-weight: 800; }
+  .sug-empty { padding: 10px; color: var(--muted); font-size: 13px; }
+  .chip.found { background: #6c5ce7; color: #fff; }
+  .chip.found button { color: rgba(255,255,255,.8); }
+  .chip.none { background: #fff3dc; color: #a8670a; }
+  .chip button { border: 0; background: none; padding: 0 0 0 2px; color: var(--muted); font-size: 16px; line-height: 1; }
+  .map-hint {
+    position: absolute; left: 372px; bottom: 16px; right: 80px; z-index: 2; pointer-events: none;
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .map-hint .chip { font-weight: 500; color: #3b4256; }
+  .map-wrap.panning svg.map { cursor: grabbing; }
+  .zoom {
+    position: absolute; right: 16px; bottom: 16px; z-index: 3; display: flex; flex-direction: column;
+    background: rgba(255,255,255,.95); border-radius: 12px; box-shadow: 0 2px 8px rgba(20,40,60,.12); overflow: hidden;
+  }
+  .zoom button { width: 38px; height: 36px; border: 0; background: none; font-size: 20px; font-weight: 600; color: #3b4256; display: grid; place-items: center; }
+  .zoom button + button { border-top: 1px solid var(--line); }
+  .zoom button:hover { background: var(--surface-2); }
+
+  .vpanel {
+    position: absolute; top: 94px; right: 16px; width: 340px; max-width: calc(100% - 32px);
+    max-height: calc(100% - 180px); overflow-y: auto; z-index: 4;
+    background: var(--surface); border-radius: 16px; border: 1px solid var(--line);
+    box-shadow: 0 12px 40px rgba(20,30,60,.18); padding: 16px;
+  }
+  .vpanel-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .vpanel-head input {
+    flex: 1; min-width: 0; border: 1px solid transparent; border-radius: 8px; padding: 5px 8px;
+    font-weight: 700; font-size: 16px; background: transparent;
+  }
+  .vpanel-head input:hover { border-color: var(--line); }
+  .vpanel-head input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .vavatar { width: 38px; height: 38px; border-radius: 10px; background: var(--amber-soft); display: grid; place-items: center; flex: none; }
+  .vlabel { font-size: 11px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; margin: 4px 0 8px; }
+  .book {
+    display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 12px;
+    background: var(--surface-2); border: 1px solid var(--line); margin-bottom: 6px;
+  }
+  .book .bicon { width: 22px; height: 26px; flex: none; }
+  .book .binfo { flex: 1; min-width: 0; }
+  .book .bname { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .book .bstate { font-size: 12px; font-weight: 600; }
+  .bstate.useful { color: var(--green); }
+  .bstate.useless { color: var(--faint); }
+  .book select, .vadd select {
+    border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; background: #fff; font-weight: 700;
+  }
+  .book .bdel { border: 0; background: none; color: var(--faint); font-size: 18px; padding: 2px 6px; border-radius: 6px; }
+  .book .bdel:hover { color: var(--red); background: var(--red-soft); }
+  .vadd select { width: 100%; padding: 9px 10px; font-weight: 600; margin-top: 4px; }
+  .vempty { color: var(--muted); font-size: 13px; padding: 12px; border: 1px dashed #d5d9e5; border-radius: 12px; text-align: center; margin-bottom: 6px; }
+  .vfoot { display: flex; justify-content: space-between; margin-top: 14px; gap: 8px; }
+  .vfoot > div { display: flex; gap: 8px; }
+
+  /* aperçu au survol */
+  .tip {
+    position: absolute; z-index: 7; pointer-events: none; min-width: 200px; max-width: 280px;
+    padding: 10px 12px; font-size: 13px; transform: translate(14px, 14px);
+  }
+  .tip h4 { margin: 0 0 6px; font-size: 14px; }
+  .tip .trow { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+  .tip .trow i { width: 10px; height: 13px; border-radius: 2px; background: var(--c); flex: none; box-shadow: inset 2px 0 0 rgba(0,0,0,.2); }
+  .tip .trow span { flex: 1; font-weight: 600; }
+  .tip .trow em { font-style: normal; font-size: 11px; font-weight: 700; }
+  .tip .trow em.useful { color: var(--green); }
+  .tip .trow em.useless { color: var(--faint); }
+  .tip .tnone { color: var(--muted); }
+
+  /* SVG */
+  .vname { font-family: "Lilita One", sans-serif; font-size: 17px; fill: #fff; stroke: #23304a; stroke-width: 4px; paint-order: stroke; text-anchor: middle; letter-spacing: .02em; }
+  .vcount { font-family: "Lilita One", sans-serif; font-size: 12px; fill: #fff; text-anchor: middle; }
+  .villager { cursor: grab; }
+  .villager.dim { opacity: .28; filter: grayscale(.7); }
+  .sel-ring { animation: pulse 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes pulse { 50% { transform: scale(1.12); opacity: .6; } }
+  .bob { animation: bob 2.4s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-3px); } }
+
+  /* ---------- Pop-up enchantements ---------- */
+  dialog.big {
+    width: min(1120px, calc(100vw - 32px)); height: min(88vh, 920px); border-radius: 22px;
+    background: var(--bg);
+  }
+  dialog.big[open] { display: flex; flex-direction: column; }
+  .big-head { padding: 20px 24px 0; background: var(--bg); }
+  .big-top { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .big-top h2 { margin: 0; font-size: 22px; letter-spacing: -.02em; flex: 1; }
+  .big-body { flex: 1; overflow-y: auto; padding: 4px 24px 28px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+  .stat { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+  .stat .n { font-size: 22px; font-weight: 800; letter-spacing: -.02em; line-height: 1; }
+  .stat .l { color: var(--muted); font-size: 12px; font-weight: 500; }
+  .stat .ic { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; flex: none; }
+  .stat.green .ic { background: var(--green-soft); color: var(--green); }
+  .stat.blue .ic { background: var(--blue-soft); color: var(--blue); }
+  .stat.amber .ic { background: var(--amber-soft); color: var(--amber); }
+  .stat.red .ic { background: var(--red-soft); color: var(--red); }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding-bottom: 14px; }
+  .toolbar .search { flex: 1 1 260px; width: auto; background-color: #fff; }
+  .seg { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: #eef0f6; border-radius: 12px; }
+  .seg button { border: 0; background: none; padding: 7px 12px; border-radius: 9px; font-weight: 600; font-size: 13px; color: var(--muted); }
+  .seg button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(20,24,40,.1); }
+
+  .cat-sec { margin-bottom: 28px; }
+  .cat-title { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 16px; }
+  .cat-title i { width: 12px; height: 12px; border-radius: 4px; background: var(--c); }
+  .cat-title span { color: var(--faint); font-weight: 600; font-size: 13px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .ecard {
+    position: relative; display: flex; gap: 14px; padding: 16px; cursor: pointer;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
+    transition: transform .12s, box-shadow .12s; overflow: hidden;
+  }
+  .ecard::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--c); }
+  .ecard:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(20,24,40,.05), 0 12px 28px rgba(20,24,40,.09); }
+  .ecard.owned { background: linear-gradient(160deg, #fff 55%, color-mix(in srgb, var(--c) 10%, #fff)); }
+  .tick {
+    width: 26px; height: 26px; border-radius: 8px; flex: none; padding: 0; margin-top: 1px;
+    border: 2px solid #d5d9e5; background: #fff; display: grid; place-items: center; transition: .15s;
+  }
+  .tick svg { opacity: 0; transform: scale(.5); transition: .15s; }
+  .ecard.maxed .tick { background: var(--green); border-color: var(--green); }
+  .ecard.owned:not(.maxed) .tick { background: var(--blue); border-color: var(--blue); }
+  .ecard.owned .tick svg { opacity: 1; transform: none; }
+  .ebody { flex: 1; min-width: 0; }
+  .etitle { font-weight: 700; font-size: 16px; }
+  .etitle b { color: var(--c); font-weight: 800; }
+  .emeta { color: var(--muted); font-size: 13px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .tag { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 99px; }
+  .tag.cur { background: var(--blue-soft); color: var(--blue); }
+  .tag.max { background: var(--green-soft); color: var(--green); }
+  .tag.vill { background: var(--amber-soft); color: #b9740a; }
+  .tag.treasure { background: #fbf0ff; color: #a14bd1; }
+  .tag.nov { background: #f1f2f5; color: var(--muted); }
+  .empty { text-align: center; color: var(--muted); padding: 40px; }
+
+  /* ---------- Dialog ---------- */
+  dialog {
+    border: 0; padding: 0; border-radius: 20px; width: min(420px, calc(100vw - 32px));
+    box-shadow: 0 24px 60px rgba(20,30,60,.25); color: var(--ink); background: var(--surface);
+  }
+  dialog::backdrop { background: rgba(25,30,50,.35); backdrop-filter: blur(3px); }
+  .dlg { padding: 22px; }
+  .dlg h3 { margin: 0 0 2px; font-size: 20px; }
+  .dlg p { margin: 0 0 18px; color: var(--muted); font-size: 14px; }
+  .levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(56px, 1fr)); gap: 8px; margin-bottom: 18px; }
+  .levels button {
+    padding: 14px 0; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2);
+    font-weight: 800; font-size: 16px;
+  }
+  .levels button:hover { border-color: var(--accent); }
+  .levels button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .levels button small { display: block; font-size: 10px; font-weight: 700; opacity: .7; text-transform: uppercase; }
+  .dlg-foot { display: flex; justify-content: space-between; gap: 8px; }
+  .btn.primary.danger-fill { background: var(--red); border-color: var(--red); box-shadow: 0 4px 12px rgba(236,91,91,.3); }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 100px); opacity: 0;
+    background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 12px; font-weight: 600; font-size: 14px;
+    transition: .25s; z-index: 50; box-shadow: var(--shadow); pointer-events: none;
+  }
+  .toast.show { transform: translate(-50%, 0); opacity: 1; }
+
+  @media (max-width: 760px) {
+    .side {
+      left: 0; right: 0; top: auto; bottom: 0; width: auto; height: 68vh; border-radius: 20px 20px 0 0;
+      transform: translateY(calc(100% - 66px)); transition: transform .25s ease;
+    }
+    .side.open { transform: none; }
+    .side-head { cursor: pointer; padding-top: 10px; }
+    .side-head::before { content: ""; display: block; width: 40px; height: 5px; border-radius: 99px; background: #d5d9e5; margin: 0 auto 8px; }
+    .side:not(.open) .side-head p, .side:not(.open) .side-head .search { display: none; }
+    .sheet-toggle { display: inline; margin-left: auto; font-size: 13px; font-weight: 600; color: var(--accent); }
+    .side-tab { display: none; }
+    body.side-collapsed .side { transform: translateY(calc(100% - 66px)); }
+    body.side-collapsed .side.open { transform: none; }
+    body.side-collapsed .map-toolbar { left: 12px; }
+    .map-toolbar { left: 12px; top: 12px; right: 86px; }
+    .book-btn { top: 12px; right: 12px; width: 56px; height: 56px; }
+    .map-hint { display: none; }
+    .zoom { bottom: 82px; right: 12px; }
+    .vpanel { top: 80px; left: 10px; right: 10px; width: auto; max-width: none; max-height: 52vh; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    dialog.big { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+    .big-head { padding: 16px 16px 0; }
+    .big-body { padding: 4px 16px 24px; }
+    .grid { grid-template-columns: 1fr; }
+    .tip { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<!-- ============ Carte plein écran ============ -->
+<div class="map-wrap" id="map-wrap">
+  <svg class="map" id="map" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+    <g id="layer-sky"></g>
+    <g id="layer-ground"></g>
+    <g id="layer-hover"></g>
+    <g id="layer-objects"></g>
+  </svg>
+  <div class="map-toolbar">
+    <button class="btn primary" id="add-vill">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      <span>Bibliothécaire</span>
+    </button>
+    <button class="btn" id="rotate-place" hidden>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+      Pivoter (R)
+    </button>
+    <span class="chip" id="vill-count">0 bibliothécaire</span>
+    <div class="msearch" id="msearch">
+      <input type="search" id="mq" placeholder="Chercher un livre sur la carte…" autocomplete="off" aria-label="Chercher un livre sur la carte">
+      <div class="msug glass" id="msug" hidden></div>
+    </div>
+    <span class="chip" id="focus-chip" hidden></span>
+  </div>
+  <div class="map-hint" id="map-hint"></div>
+  <div class="zoom">
+    <button id="zoom-in" aria-label="Zoomer">+</button>
+    <button id="zoom-out" aria-label="Dézoomer">−</button>
+    <button id="zoom-reset" aria-label="Recentrer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  </div>
+  <div class="vpanel" id="vpanel" hidden></div>
+  <div class="tip glass" id="tip" hidden></div>
+</div>
+
+<!-- ============ Liste des livres (gauche / tiroir sur mobile) ============ -->
+<aside class="side glass" id="side">
+  <div class="side-head" id="side-head">
+    <div class="brand">
+      <div class="brand-logo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg></div>
+      Grimoire
+      <span class="sheet-toggle" id="sheet-toggle">Livres</span>
+    </div>
+    <p>Glisse un livre sur un bibliothécaire, ou sur l'herbe pour en créer un.</p>
+    <input type="search" class="search" id="side-q" placeholder="Rechercher un livre…" autocomplete="off">
+  </div>
+  <div class="side-list" id="side-list"></div>
+  <div class="side-foot">
+    <button class="cull-btn" id="cull-btn">
+      <span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 3 9.5 12.5"/><path d="M5.5 12.5h8l1 2.5c.6 1.6-.5 3.3-2.2 3.6L6 20l-2-3.5c-.8-1.4-.6-3.2.6-4z"/><path d="m8 20 1-3M12 19.5l.5-2.5"/></svg></span>
+      <span>Bibliothécaires superflus</span>
+      <b id="cull-count" class="zero">0</b>
+    </button>
+  </div>
+  <button class="side-tab" id="side-tab" aria-label="Replier le grimoire" title="Replier / déplier">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg>
+  </button>
+</aside>
+
+<dialog id="cull-dlg" class="mid">
+  <div class="mid-head">
+    <div style="flex:1">
+      <h3>Bibliothécaires superflus</h3>
+      <p>Ceux que tu peux éliminer sans perdre l'accès à un livre : chacun de leurs livres est aussi proposé ailleurs, au même niveau ou mieux.</p>
+    </div>
+    <button class="icon-btn" id="cull-close" aria-label="Fermer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="mid-body" id="cull-body"></div>
+</dialog>
+
+<!-- ============ Bouton livre enchanté ============ -->
+<button class="book-btn" id="book-btn" aria-label="Mes enchantements">
+  <svg width="34" height="34" viewBox="0 0 16 16" shape-rendering="crispEdges">
+    <rect x="2" y="2" width="11" height="12" fill="#3a1f7a"/><rect x="3" y="2" width="9" height="11" fill="#8d5cf6"/>
+    <rect x="12" y="3" width="2" height="11" fill="#efe3c4"/><rect x="2" y="13" width="12" height="1" fill="#2a1460"/>
+    <rect x="5" y="4" width="5" height="1" fill="#ffd84a"/><rect x="5" y="6" width="5" height="3" fill="#c7a2ff"/>
+    <rect x="6" y="7" width="3" height="1" fill="#fff"/><rect x="4" y="10" width="7" height="1" fill="#ffd84a"/>
+    <rect x="1" y="1" width="1" height="1" fill="#fff"/><rect x="14" y="1" width="1" height="1" fill="#ffd84a"/>
+  </svg>
+  <span class="badge" id="book-badge">0/42</span>
+</button>
+
+<!-- ============ Pop-up enchantements ============ -->
+<dialog id="ench-dlg" class="big">
+  <div class="big-head">
+    <div class="big-top">
+      <h2>Mes enchantements</h2>
+      <div class="menu">
+        <button class="icon-btn" id="menu-btn" aria-label="Options"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
+        <div class="menu-list" id="menu" hidden>
+          <button id="export">Exporter la sauvegarde</button>
+          <button id="import">Importer une sauvegarde</button>
+          <button id="reset" class="danger">Tout réinitialiser</button>
+        </div>
+        <input type="file" id="file" accept="application/json" hidden>
+      </div>
+      <button class="icon-btn" id="ench-close" aria-label="Fermer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="stats">
+      <div class="stat green"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div><div><div class="n" id="st-max">0</div><div class="l">au niveau max</div></div></div>
+      <div class="stat blue"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div><div><div class="n" id="st-low">0</div><div class="l">à améliorer</div></div></div>
+      <div class="stat amber"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div><div><div class="n" id="st-vill">0</div><div class="l">chez un bibliothécaire</div></div></div>
+      <div class="stat red"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></div><div><div class="n" id="st-miss">0</div><div class="l">manquants</div></div></div>
+    </div>
+    <div class="toolbar">
+      <input type="search" class="search" id="q" placeholder="Rechercher un enchantement ou un objet…" autocomplete="off">
+      <div class="seg" id="filters">
+        <button class="on" data-f="all">Tous</button>
+        <button data-f="missing">Manquants</button>
+        <button data-f="low">À améliorer</button>
+        <button data-f="owned">Obtenus</button>
+        <button data-f="vill">Chez un bibliothécaire</button>
+      </div>
+    </div>
+  </div>
+  <div class="big-body"><div id="ench-list"></div></div>
+</dialog>
+
+<dialog id="dlg">
+  <div class="dlg">
+    <h3 id="dlg-title"></h3>
+    <p>Quel niveau possèdes-tu ?</p>
+    <div class="levels" id="dlg-levels"></div>
+    <div class="dlg-foot">
+      <button class="btn ghost-danger" id="dlg-none">Je ne l'ai pas</button>
+      <button class="btn" id="dlg-close">Fermer</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="ask-dlg">
+  <div class="dlg">
+    <h3 id="ask-title">Confirmer</h3>
+    <p id="ask-msg"></p>
+    <div class="dlg-foot">
+      <button class="btn" id="ask-no">Annuler</button>
+      <button class="btn primary danger-fill" id="ask-yes">Confirmer</button>
+    </div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ================= Données =================
+const CATS = [
+  { id: "armor",   name: "Armure",         color: "var(--c-armor)",   hex: "#5b8def" },
+  { id: "melee",   name: "Épée & Hache",   color: "var(--c-melee)",   hex: "#ef6461" },
+  { id: "mace",    name: "Masse & Lance",  color: "var(--c-mace)",    hex: "#9b7bea" },
+  { id: "tool",    name: "Outils",         color: "var(--c-tool)",    hex: "#f2a541" },
+  { id: "bow",     name: "Arc & Arbalète", color: "var(--c-bow)",     hex: "#3fbf7f" },
+  { id: "trident", name: "Trident",        color: "var(--c-trident)", hex: "#23b2ad" },
+  { id: "fish",    name: "Canne à pêche",  color: "var(--c-fish)",    hex: "#46aee3" },
+  { id: "misc",    name: "Universels",     color: "var(--c-misc)",    hex: "#e46aa9" },
+  { id: "curse",   name: "Malédictions",   color: "var(--c-curse)",   hex: "#8a8f9c" },
+];
+const CAT = Object.fromEntries(CATS.map(c => [c.id, c]));
+
+// nov = impossible à obtenir chez les villageois (Bedrock)
+const ENCH = [
+  { id: "protection",            name: "Protection",                        max: 4, cat: "armor", on: "Armure" },
+  { id: "fire_protection",       name: "Protection contre le feu",          max: 4, cat: "armor", on: "Armure" },
+  { id: "blast_protection",      name: "Protection contre les explosions",  max: 4, cat: "armor", on: "Armure" },
+  { id: "projectile_protection", name: "Protection contre les projectiles", max: 4, cat: "armor", on: "Armure" },
+  { id: "thorns",                name: "Épines",                 max: 3, cat: "armor", on: "Armure" },
+  { id: "respiration",           name: "Apnée",                  max: 3, cat: "armor", on: "Casque" },
+  { id: "aqua_affinity",         name: "Affinité aquatique",     max: 1, cat: "armor", on: "Casque" },
+  { id: "feather_falling",       name: "Chute amortie",          max: 4, cat: "armor", on: "Bottes" },
+  { id: "depth_strider",         name: "Agilité aquatique",      max: 3, cat: "armor", on: "Bottes" },
+  { id: "frost_walker",          name: "Semelles givrantes",     max: 2, cat: "armor", on: "Bottes", treasure: true },
+  { id: "soul_speed",            name: "Agilité des âmes",       max: 3, cat: "armor", on: "Bottes", treasure: true, nov: true },
+  { id: "swift_sneak",           name: "Furtivité rapide",       max: 3, cat: "armor", on: "Jambières", treasure: true, nov: true },
+  { id: "sharpness",             name: "Tranchant",              max: 5, cat: "melee", on: "Épée, hache" },
+  { id: "smite",                 name: "Châtiment",              max: 5, cat: "melee", on: "Épée, hache, masse" },
+  { id: "bane_of_arthropods",    name: "Fléau des arthropodes",  max: 5, cat: "melee", on: "Épée, hache, masse" },
+  { id: "knockback",             name: "Recul",                  max: 2, cat: "melee", on: "Épée" },
+  { id: "fire_aspect",           name: "Aura de feu",            max: 2, cat: "melee", on: "Épée, masse" },
+  { id: "looting",               name: "Butin",                  max: 3, cat: "melee", on: "Épée, lance" },
+  { id: "density",               name: "Densité",                max: 5, cat: "mace",  on: "Masse" },
+  { id: "breach",                name: "Brèche",                 max: 4, cat: "mace",  on: "Masse" },
+  { id: "wind_burst",            name: "Rafale",                 max: 3, cat: "mace",  on: "Masse", treasure: true, nov: true },
+  { id: "lunge",                 name: "Fente",                  max: 3, cat: "mace",  on: "Lance" },
+  { id: "efficiency",            name: "Efficacité",             max: 5, cat: "tool",  on: "Outils, cisailles" },
+  { id: "fortune",               name: "Fortune",                max: 3, cat: "tool",  on: "Pioche, pelle, hache, houe" },
+  { id: "silk_touch",            name: "Toucher de soie",        max: 1, cat: "tool",  on: "Pioche, pelle, hache, houe" },
+  { id: "power",                 name: "Puissance",              max: 5, cat: "bow",   on: "Arc" },
+  { id: "punch",                 name: "Frappe",                 max: 2, cat: "bow",   on: "Arc" },
+  { id: "flame",                 name: "Flamme",                 max: 1, cat: "bow",   on: "Arc" },
+  { id: "infinity",              name: "Infinité",               max: 1, cat: "bow",   on: "Arc" },
+  { id: "multishot",             name: "Tir multiple",           max: 1, cat: "bow",   on: "Arbalète" },
+  { id: "piercing",              name: "Perforation",            max: 4, cat: "bow",   on: "Arbalète" },
+  { id: "quick_charge",          name: "Charge rapide",          max: 3, cat: "bow",   on: "Arbalète" },
+  { id: "impaling",              name: "Empalement",             max: 5, cat: "trident", on: "Trident" },
+  { id: "loyalty",               name: "Loyauté",                max: 3, cat: "trident", on: "Trident" },
+  { id: "riptide",               name: "Impulsion",              max: 3, cat: "trident", on: "Trident" },
+  { id: "channeling",            name: "Canalisation",           max: 1, cat: "trident", on: "Trident" },
+  { id: "luck_of_the_sea",       name: "Chance de la mer",       max: 3, cat: "fish",  on: "Canne à pêche" },
+  { id: "lure",                  name: "Appât",                  max: 3, cat: "fish",  on: "Canne à pêche" },
+  { id: "unbreaking",            name: "Solidité",               max: 3, cat: "misc",  on: "Tout objet durable" },
+  { id: "mending",               name: "Raccommodage",           max: 1, cat: "misc",  on: "Tout objet durable", treasure: true },
+  { id: "binding_curse",         name: "Malédiction du lien éternel", max: 1, cat: "curse", on: "Armure, citrouille", treasure: true },
+  { id: "vanishing_curse",       name: "Malédiction de disparition",  max: 1, cat: "curse", on: "Tout objet", treasure: true },
+];
+const E = Object.fromEntries(ENCH.map(e => [e.id, e]));
+const ROMAN = ["", "I", "II", "III", "IV", "V"];
+const fullName = (e, l = e.max) => e.max > 1 ? `${e.name} ${ROMAN[l]}` : e.name;
+
+// ================= État =================
+const KEY = "grimoire-v2";
+let S;
+try { S = JSON.parse(localStorage.getItem(KEY)); } catch {}
+if (!S || typeof S !== "object") S = {};
+S.owned ||= {}; S.villagers ||= []; S.seq ||= 1;
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
+const owned = id => S.owned[id] || 0;
+const offers = id => S.villagers.flatMap(v => v.books.filter(b => b.e === id).map(b => ({ v, lvl: b.lvl })));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+function commit() { save(); renderAll(); }
+function setOwned(id, lvl) { if (lvl) S.owned[id] = lvl; else delete S.owned[id]; commit(); }
+
+const CHECK = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
+const PERSON = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="7" r="5"/><path d="M3 22c0-5 4-8 9-8s9 3 9 8z"/></svg>`;
+
+// ================= Pop-up & tiroir =================
+const enchDlg = document.getElementById("ench-dlg");
+document.getElementById("book-btn").onclick = () => { renderEnchants(); enchDlg.showModal(); };
+document.getElementById("ench-close").onclick = () => enchDlg.close();
+enchDlg.addEventListener("click", ev => { if (ev.target === enchDlg) enchDlg.close(); });
+const side = document.getElementById("side");
+// repli du grimoire (comme le chat de Clash of Clans)
+const COLLAPSE_KEY = "grimoire-side-collapsed";
+try { if (localStorage.getItem(COLLAPSE_KEY) === "1") document.body.classList.add("side-collapsed"); } catch {}
+document.getElementById("side-tab").onclick = () => {
+  const on = document.body.classList.toggle("side-collapsed");
+  document.getElementById("side-tab").setAttribute("aria-label", on ? "Déplier le grimoire" : "Replier le grimoire");
+  try { localStorage.setItem(COLLAPSE_KEY, on ? "1" : "0"); } catch {}
+};
+const isMobile = () => matchMedia("(max-width: 760px)").matches;
+document.getElementById("side-head").addEventListener("click", ev => {
+  if (!isMobile() || ev.target.closest("input")) return;
+  side.classList.toggle("open");
+});
+
+// ================= Statistiques =================
+function renderStats() {
+  let max = 0, low = 0, miss = 0, vill = 0;
+  for (const e of ENCH) {
+    const l = owned(e.id);
+    if (l === e.max) max++; else if (l) low++; else miss++;
+    if (offers(e.id).length) vill++;
+  }
+  document.getElementById("st-max").textContent = max;
+  document.getElementById("st-low").textContent = low;
+  document.getElementById("st-miss").textContent = miss;
+  document.getElementById("st-vill").textContent = vill;
+  document.getElementById("book-badge").textContent = `${max}/${ENCH.length}`;
+}
+
+// ================= Onglet Enchantements =================
+let filter = "all", query = "";
+function passes(e) {
+  const l = owned(e.id);
+  if (query && !norm(e.name + " " + e.on).includes(query)) return false;
+  if (filter === "missing") return !l;
+  if (filter === "low") return l && l < e.max;
+  if (filter === "owned") return !!l;
+  if (filter === "vill") return offers(e.id).length > 0;
+  return true;
+}
+function renderEnchants() {
+  const root = document.getElementById("ench-list");
+  let html = "";
+  for (const c of CATS) {
+    const all = ENCH.filter(e => e.cat === c.id);
+    const items = all.filter(passes);
+    if (!items.length) continue;
+    const done = all.filter(e => owned(e.id) === e.max).length;
+    html += `<section class="cat-sec" style="--c:${c.color}"><h2 class="cat-title"><i></i>${c.name}<span>${done}/${all.length}</span></h2><div class="grid">`;
+    for (const e of items) {
+      const l = owned(e.id), max = l === e.max;
+      const offs = offers(e.id);
+      let tags = "";
+      if (l && !max) tags += `<span class="tag cur">Actuel : niveau ${ROMAN[l]}</span>`;
+      if (max && e.max > 1) tags += `<span class="tag max">Niveau max</span>`;
+      if (offs.length) {
+        const best = offs.reduce((a, b) => b.lvl > a.lvl ? b : a);
+        tags += `<span class="tag vill">${esc(best.v.name)}${e.max > 1 ? " · " + ROMAN[best.lvl] : ""}${offs.length > 1 ? ` +${offs.length - 1}` : ""}</span>`;
+      }
+      if (e.treasure) tags += `<span class="tag treasure">Trésor</span>`;
+      if (e.nov) tags += `<span class="tag nov">Pas chez les villageois</span>`;
+      html += `<div class="ecard${l ? " owned" : ""}${max ? " maxed" : ""}" data-id="${e.id}" tabindex="0" role="button" style="--c:${c.color}">
+        <button class="tick" data-tick aria-label="Possédé au niveau max">${CHECK}</button>
+        <div class="ebody">
+          <div class="etitle">${e.name}${e.max > 1 ? ` <b>${ROMAN[e.max]}</b>` : ""}</div>
+          <div class="emeta">${e.on}</div>
+          ${tags ? `<div class="tags">${tags}</div>` : ""}
+        </div>
+      </div>`;
+    }
+    html += `</div></section>`;
+  }
+  root.innerHTML = html || `<div class="empty">Aucun enchantement ne correspond.</div>`;
+}
+document.getElementById("ench-list").addEventListener("click", ev => {
+  const card = ev.target.closest(".ecard"); if (!card) return;
+  const e = E[card.dataset.id];
+  if (ev.target.closest("[data-tick]")) return setOwned(e.id, owned(e.id) ? 0 : e.max);
+  e.max === 1 ? setOwned(e.id, owned(e.id) ? 0 : 1) : openLevelDlg(e);
+});
+document.getElementById("ench-list").addEventListener("keydown", ev => {
+  if ((ev.key === "Enter" || ev.key === " ") && ev.target.classList.contains("ecard")) { ev.preventDefault(); ev.target.click(); }
+});
+document.getElementById("q").addEventListener("input", ev => { query = norm(ev.target.value.trim()); renderEnchants(); });
+document.querySelectorAll("#filters button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("#filters button").forEach(x => x.classList.toggle("on", x === b));
+  filter = b.dataset.f; renderEnchants();
+}));
+
+// ---- Choix du niveau ----
+const dlg = document.getElementById("dlg");
+let dlgE = null;
+function openLevelDlg(e) {
+  dlgE = e;
+  document.getElementById("dlg-title").textContent = fullName(e);
+  const box = document.getElementById("dlg-levels");
+  box.innerHTML = "";
+  for (let l = 1; l <= e.max; l++) {
+    const b = document.createElement("button");
+    b.className = owned(e.id) === l ? "on" : "";
+    b.innerHTML = `${ROMAN[l]}${l === e.max ? "<small>max</small>" : ""}`;
+    b.onclick = () => { setOwned(e.id, l); dlg.close(); toast(`${fullName(e, l)} enregistré`); };
+    box.appendChild(b);
+  }
+  dlg.showModal();
+}
+document.getElementById("dlg-none").onclick = () => { setOwned(dlgE.id, 0); dlg.close(); };
+document.getElementById("dlg-close").onclick = () => dlg.close();
+dlg.addEventListener("click", ev => { if (ev.target === dlg) dlg.close(); });
+
+// ================= Liste latérale =================
+let sideQuery = "", focusEnch = null;
+function renderSide() {
+  const root = document.getElementById("side-list");
+  let html = "";
+  for (const c of CATS) {
+    const items = ENCH.filter(e => e.cat === c.id && (!sideQuery || norm(e.name).includes(sideQuery)));
+    if (!items.length) continue;
+    html += `<div class="side-cat" style="--c:${c.color}"><i></i>${c.name}</div>`;
+    for (const e of items) {
+      const l = owned(e.id), n = offers(e.id).length;
+      const st = l === e.max ? "max" : l ? "low" : "";
+      html += `<div class="row${focusEnch === e.id ? " sel" : ""}${e.nov ? " nov" : ""}" data-id="${e.id}" draggable="${!e.nov}" style="--c:${c.color}" title="${e.nov ? "Impossible à obtenir chez les villageois" : "Glisse sur la carte · clique pour repérer"}">
+        <button class="mini-tick ${st}" data-tick aria-label="Possédé">${CHECK}</button>
+        <span class="rname">${e.name}${e.max > 1 ? ` <b>${ROMAN[e.max]}</b>` : ""}</span>
+        ${l && l < e.max ? `<span class="rcur" title="Niveau actuel">${ROMAN[l]}</span>` : ""}
+        ${n ? `<span class="rvill" title="Villageois qui le proposent">${PERSON}${n}</span>` : ""}
+      </div>`;
+    }
+  }
+  root.innerHTML = html;
+}
+const sideList = document.getElementById("side-list");
+sideList.addEventListener("click", ev => {
+  const row = ev.target.closest(".row"); if (!row) return;
+  const e = E[row.dataset.id];
+  if (ev.target.closest("[data-tick]")) {
+    if (e.max === 1) setOwned(e.id, owned(e.id) ? 0 : 1); else openLevelDlg(e);
+    return;
+  }
+  setFocus(focusEnch === e.id ? null : e.id);
+});
+sideList.addEventListener("dragstart", ev => {
+  const row = ev.target.closest(".row"); if (!row || row.classList.contains("nov")) return ev.preventDefault();
+  ev.dataTransfer.setData("text/plain", row.dataset.id);
+  ev.dataTransfer.effectAllowed = "copy";
+});
+document.getElementById("side-q").addEventListener("input", ev => { sideQuery = norm(ev.target.value.trim()); renderSide(); });
+
+function renderFocusChip() {
+  const chip = document.getElementById("focus-chip");
+  if (!focusEnch) { chip.hidden = true; return; }
+  const n = offers(focusEnch).length;
+  chip.hidden = false;
+  chip.className = "chip " + (n ? "found" : "none");
+  chip.innerHTML = `${n ? `${n} bibliothécaire${n > 1 ? "s" : ""} le propose${n > 1 ? "nt" : ""}` : "Aucun bibliothécaire ne le propose"} <button aria-label="Effacer la recherche">×</button>`;
+  chip.querySelector("button").onclick = () => setFocus(null);
+}
+
+// ---- recherche d'un livre sur la carte ----
+const mq = document.getElementById("mq"), msug = document.getElementById("msug");
+let sugIdx = 0, sugList = [];
+function setFocus(id, fly = true) {
+  focusEnch = id;
+  mq.value = id ? fullName(E[id]) : "";
+  msug.hidden = true;
+  renderSide(); renderMapObjects(); renderFocusChip();
+  if (id && fly) flyToOffers(id);
+}
+function flyToOffers(id) {
+  const vs = offers(id).map(o => o.v);
+  if (!vs.length) return;
+  const pts = vs.map(v => iso(v.c, v.r));
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+  const r = svg.getBoundingClientRect();
+  const free = r.width - (isMobile() || document.body.classList.contains("side-collapsed") ? 0 : 356);
+  const need = Math.max((Math.max(...xs) - Math.min(...xs) + 360) / free, (Math.max(...ys) - Math.min(...ys) + 360) / r.height);
+  view.s = Math.max(Math.min(view.s, sMax / 1.5), need);
+  view.cx = (Math.min(...xs) + Math.max(...xs)) / 2 - (r.width - free) / 2 * view.s;
+  view.cy = (Math.min(...ys) + Math.max(...ys)) / 2 - BH * 1.5;
+  applyView();
+}
+function renderSug() {
+  const q = norm(mq.value.trim());
+  const scored = ENCH.map(e => {
+    const n = norm(e.name), offs = offers(e.id);
+    const rank = !q ? (offs.length ? 0 : 1) : n.startsWith(q) ? 0 : n.split(/\s+/).some(w => w.startsWith(q)) ? 1 : n.includes(q) ? 2 : -1;
+    return { e, offs, rank };
+  }).filter(x => x.rank >= 0).sort((a, b) => a.rank - b.rank);
+  sugList = scored.slice(0, 9);
+  sugIdx = Math.min(sugIdx, Math.max(0, sugList.length - 1));
+  msug.innerHTML = sugList.length ? sugList.map(({ e, offs }, i) => {
+    const best = offs.reduce((m, o) => Math.max(m, o.lvl), 0);
+    const meta = offs.length ? `<span class="sm yes">${offs.length} bibl.${e.max > 1 ? " · " + ROMAN[best] : ""}</span>` : `<span class="sm no">${e.nov ? "Pas chez les villageois" : "Personne"}</span>`;
+    return `<div class="sug${i === sugIdx ? " on" : ""}" data-i="${i}" style="--c:${CAT[e.cat].color}"><i></i><span class="sn">${e.name}${e.max > 1 ? ` <b>${ROMAN[e.max]}</b>` : ""}</span>${owned(e.id) === e.max ? `<span class="own" title="Déjà au max">✓</span>` : ""}${meta}</div>`;
+  }).join("") : `<div class="sug-empty">Aucun livre ne correspond.</div>`;
+  msug.hidden = false;
+}
+mq.addEventListener("focus", () => { sugIdx = 0; if (focusEnch) mq.select(); renderSug(); });
+mq.addEventListener("input", () => { sugIdx = 0; renderSug(); if (!mq.value) setFocus(null); });
+mq.addEventListener("keydown", ev => {
+  if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+    ev.preventDefault();
+    sugIdx = (sugIdx + (ev.key === "ArrowDown" ? 1 : -1) + sugList.length) % Math.max(sugList.length, 1);
+    renderSug();
+  } else if (ev.key === "Enter" && sugList[sugIdx]) { setFocus(sugList[sugIdx].e.id); mq.blur(); }
+  else if (ev.key === "Escape") { msug.hidden = true; mq.blur(); }
+});
+msug.addEventListener("pointerdown", ev => {
+  const it = ev.target.closest(".sug"); if (!it) return;
+  ev.preventDefault();
+  setFocus(sugList[+it.dataset.i].e.id); mq.blur();
+});
+mq.addEventListener("blur", () => setTimeout(() => { msug.hidden = true; if (focusEnch) mq.value = fullName(E[focusEnch]); }, 120));
+
+// ================= Carte isométrique =================
+// Monde en blocs cubiques : zone constructible plate, relief derrière et sur les côtés,
+// plage + rivière devant, puis l'autre rive. La caméra ne montre jamais le bord du monde.
+const N = 40, A = 6, B = 19;               // grille N×N, zone constructible [A..B]
+const TW = 64, TH = 32, BH = 32, BASE = -3; // BH = TW/2 → blocs cubiques
+const inPlay = (c, r) => c >= A && r >= A && c <= B && r <= B;
+
+function rng(seed) { return () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const noise = (c, r) => (Math.sin(c * 1.37 + r * .71) + Math.sin(c * .53 - r * 1.13 + 1.7) + .6 * Math.sin((c + r) * .9 + 4.1)) / 2.6;
+const hash = (c, r) => Math.abs(Math.sin(c * 12.9898 + r * 78.233) * 43758.5453) % 1;
+
+function frontland(c, r, k) {
+  if (k <= 2) return { h: -1, mat: "sand" };
+  if (k <= 6) return { h: -1, mat: "water" };
+  if (k === 7) return { h: -1, mat: "sand" };
+  const h = Math.max(0, Math.round(noise(c * .7, r * .7) * 1.6 + (k - 9) * .12));
+  return { h, mat: "grass", shore: true };
+}
+const terrain = [];
+for (let r = 0; r < N; r++) {
+  terrain[r] = [];
+  for (let c = 0; c < N; c++) {
+    if (inPlay(c, r)) { terrain[r][c] = { h: 0, mat: "play" }; continue; }
+    const m = Math.max(A - c, A - r);        // profondeur dans le relief
+    const front = Math.max(c - B, r - B);    // profondeur dans la bande avant
+    let t = null;
+    if (m > 0) {
+      const n = noise(c, r);
+      const back = 1 - (c + r) / (2 * N - 2);
+      // plus on s'écarte de l'axe central, plus le relief monte : la ligne de crête reste à l'horizontale
+      let h = m * .6 + m * back * 1.0 + (m / A) * Math.abs(c - r) * .42 + n * 1.1 + (hash(c, r) - .5) * 1.4 - Math.max(front, 0) * .9;
+      h = Math.round(h);
+      if (h >= 1) {
+        let mat;
+        if (h >= 11 || (h >= 9 && n > .2)) mat = "snow";
+        else if (h >= 4) mat = n > .4 && h < 6 ? "grass" : "stone";
+        else mat = n < -.7 ? "stone" : "grass";
+        t = { h, mat };
+      }
+    }
+    terrain[r][c] = t || frontland(c, r, Math.max(front, 1));
+  }
+}
+const T = (c, r) => (c < 0 || r < 0 || c >= N || r >= N) ? null : terrain[r][c];
+
+// ---- Décor : une petite forêt, quelques arbres sur l'autre rive, des rochers ----
+const decor = [];
+(function buildDecor() {
+  const rand = rng(7);
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+    const t = terrain[r][c];
+    if (t.mat === "grass" && t.h <= 3 && !t.shore) {
+      const inForest = Math.hypot(c - 3, r - 15) < 3.6;
+      if (inForest && rand() < .75) decor.push({ c, r, type: rand() < .5 ? "spruce" : "oak" });
+      else if (!inForest && rand() < .04) decor.push({ c, r, type: rand() < .5 ? "spruce" : "bush" });
+    } else if (t.shore && rand() < .035) decor.push({ c, r, type: rand() < .6 ? "oak" : "bush" });
+    else if (t.mat === "stone" && rand() < .05) decor.push({ c, r, type: "rock" });
+  }
+})();
+
+// cadrage
+const PAD = 0;
+let minRel = Infinity;
+for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) minRel = Math.min(minRel, (c + r) * TH / 2 - terrain[r][c].h * BH);
+const OX = N * TW / 2, OY = 400 - minRel;
+const W = N * TW, H = OY + N * TH - BASE * BH;
+const LX = OX - N * TW / 2, RX = OX + N * TW / 2;
+const YMID = OY + N * TH / 2 - 8;          // hauteur des coins gauche/droit au niveau du sol
+const TOP = OY + 2 * A * TH / 2 - 14 * BH; // la caméra ne monte pas plus haut que ~14 blocs au-dessus de la zone
+
+const svg = document.getElementById("map");
+svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+const view = { s: 0, cx: OX, cy: 0 };      // s = unités SVG par pixel écran
+let sMax = 1;
+function clampView() {
+  const { width: cw, height: ch } = svg.getBoundingClientRect();
+  if (cw < 10 || ch < 10) return false;
+  sMax = Math.min((RX - LX) / cw, (YMID + N * TW / 4 - TOP) / (ch + cw / 4));
+  if (!view.s) { // centré sur la zone constructible, dans l'espace laissé libre par la carte latérale
+    view.s = sMax;
+    view.cx = OX - (isMobile() ? 0 : 356 / 2) * sMax;
+    view.cy = OY + (A + B) * TH / 2 - BH + (isMobile() ? 40 * sMax : 0);
+  }
+  view.s = Math.min(Math.max(view.s, sMax / 3.2), sMax);
+  const w = cw * view.s, h = ch * view.s;
+  view.cx = Math.min(Math.max(view.cx, LX + w / 2), RX - w / 2);
+  // le bas de l'écran doit rester au-dessus des bords avant du monde (en losange)
+  let ymax = YMID + Math.min(view.cx - w / 2 - LX, RX - view.cx - w / 2) * .5;
+  if (ymax - h < TOP) {
+    const need = (TOP + h - YMID) * 2;     // décalage horizontal maximal autorisé
+    const lo = LX + w / 2 + need, hi = RX - w / 2 - need;
+    view.cx = lo <= hi ? Math.min(Math.max(view.cx, lo), hi) : OX;
+    ymax = YMID + Math.min(view.cx - w / 2 - LX, RX - view.cx - w / 2) * .5;
+  }
+  view.cy = Math.min(Math.max(view.cy, TOP + h / 2), Math.max(TOP + h / 2, ymax - h / 2));
+  return { w, h };
+}
+function applyView() {
+  const v = clampView(); if (!v) return;
+  svg.setAttribute("viewBox", `${view.cx - v.w / 2} ${view.cy - v.h / 2} ${v.w} ${v.h}`);
+}
+function zoomBy(f, px = view.cx, py = view.cy) {
+  const ns = Math.min(Math.max(view.s / f, sMax / 3.2), sMax);
+  view.cx = px - (px - view.cx) * ns / view.s;
+  view.cy = py - (py - view.cy) * ns / view.s;
+  view.s = ns; applyView();
+}
+new ResizeObserver(applyView).observe(svg);
+
+const iso = (c, r) => ({ x: OX + (c - r) * TW / 2, y: OY + (c + r) * TH / 2 + TH / 2 });
+const diamond = (c, r, k = 1, h = 0) => { const { x, y: y0 } = iso(c, r); const y = y0 - h * BH; const w = TW / 2 * k, d = TH / 2 * k; return `${x},${y - d} ${x + w},${y} ${x},${y + d} ${x - w},${y}`; };
+// un bibliothécaire occupe 2 cases : la sienne + celle de son pupitre (direction 0..3)
+const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+const tilesOf = (c, r, dir) => [[c, r], [c + DIRS[dir][0], r + DIRS[dir][1]]];
+const villAt = (c, r) => S.villagers.find(v => tilesOf(v.c, v.r, v.dir || 0).some(([a, b]) => a === c && b === r));
+const canPlace = (c, r, dir, exceptId) => tilesOf(c, r, dir).every(([a, b]) => { const o = villAt(a, b); return inPlay(a, b) && (!o || o.id === exceptId); });
+const firstDir = (c, r, from = 0, exceptId) => { for (let k = 0; k < 4; k++) { const d = (from + k) % 4; if (canPlace(c, r, d, exceptId)) return d; } return -1; };
+// point d'angle de la grille (gc, gr) → coordonnées écran au niveau du sol
+const gridPt = (gc, gr) => [OX + (gc - gr) * TW / 2, OY + (gc + gr) * TH / 2];
+function footprint(c, r, dir, inset = 0) {
+  const t = tilesOf(c, r, dir);
+  const c0 = Math.min(t[0][0], t[1][0]) + inset, c1 = Math.max(t[0][0], t[1][0]) + 1 - inset;
+  const r0 = Math.min(t[0][1], t[1][1]) + inset, r1 = Math.max(t[0][1], t[1][1]) + 1 - inset;
+  return [gridPt(c0, r0), gridPt(c1, r0), gridPt(c1, r1), gridPt(c0, r1)].map(p => p.join(",")).join(" ");
+}
+function toSvg(cx, cy) { const p = svg.createSVGPoint(); p.x = cx; p.y = cy; return p.matrixTransform(svg.getScreenCTM().inverse()); }
+function tileAt(px, py) {
+  const a = (px - OX) / (TW / 2), b = (py - OY - TH / 2) / (TH / 2);
+  return { c: Math.round((a + b) / 2), r: Math.round((b - a) / 2) };
+}
+// zone de clic qui couvre tout le sprite (il dépasse au-dessus de sa case)
+const VS = 1.15; // échelle des villageois
+function villagerNear(px, py) {
+  const t = tileAt(px, py), onTile = villAt(t.c, t.r);
+  if (onTile) return onTile;
+  let best = null, bd = Infinity;
+  for (const v of S.villagers) {
+    const { x, y } = iso(v.c, v.r);
+    if (px > x - 32 && px < x + 32 && py > y - 122 && py < y + 18) {
+      const d = Math.abs(px - x) + Math.abs(py - (y - 36));
+      if (d < bd) { bd = d; best = v; }
+    }
+  }
+  return best;
+}
+// anciennes sauvegardes (autre grille) : on recale dans la zone constructible
+for (const v of S.villagers) if (!inPlay(v.c, v.r)) { v.c = Math.min(B, Math.max(A, v.c)); v.r = Math.min(B, Math.max(A, v.r)); }
+for (const v of S.villagers) if (v.dir == null) v.dir = Math.max(0, firstDir(v.c, v.r, 0, v.id));
+
+function drawSky() {
+  const rand = rng(5);
+  let h = "";
+  for (let i = 0; i < 14; i++) {
+    const x = rand() * W, y = TOP + 20 + rand() * 200, u = 14 + rand() * 10;
+    const blocks = [[0, 0, 6, 2], [1, -1, 3, 1], [-2, 1, 4, 1], [5, 1, 3, 1]];
+    h += `<g opacity="${.75 + rand() * .2}">` + blocks.map(([bx, by, bw, bh]) => `<rect x="${x + bx * u}" y="${y + by * u}" width="${bw * u}" height="${bh * u}" fill="#fff"/>`).join("")
+      + `<rect x="${x - 2 * u}" y="${y + 2 * u}" width="${10 * u}" height="${u * .35}" fill="#dbe9f7"/></g>`;
+  }
+  document.getElementById("layer-sky").innerHTML = h;
+}
+
+const MAT = {
+  play:  { top: ["#6cb53a", "#66ae36", "#71ba3e"], L: "#79522f", R: "#5e3f24", lip: ["#559a2b", "#478524"] },
+  grass: { top: ["#5ea832", "#59a12f", "#63ae36"], L: "#79522f", R: "#5e3f24", lip: ["#4c9127", "#3f7d20"] },
+  stone: { top: ["#8d9298", "#868b91", "#93989e"], L: "#6e737a", R: "#5b6067" },
+  snow:  { top: ["#f3f7fb", "#e9eff5", "#f7fafc"], L: "#6e737a", R: "#5b6067", lip: ["#e4ebf2", "#d3dce6"] },
+  sand:  { top: ["#e6d391", "#e0cc88", "#ead898"], L: "#c7ac6c", R: "#ae955a" },
+  water: { top: ["#2f7fd8", "#2b79cf", "#3384dc"], L: "#2462ad", R: "#1f5596" },
+};
+const DEEP = { L: "#5f6168", R: "#4d4f56" };
+
+function face(c, r, side, hTop, hBot) {
+  const { x, y } = iso(c, r);
+  const yt = y - hTop * BH, yb = y - hBot * BH;
+  return side === "L"
+    ? `${x - TW / 2},${yt} ${x},${yt + TH / 2} ${x},${yb + TH / 2} ${x - TW / 2},${yb}`
+    : `${x},${yt + TH / 2} ${x + TW / 2},${yt} ${x + TW / 2},${yb} ${x},${yb + TH / 2}`;
+}
+function levelLines(c, r, side, hTop, hBot) {
+  const { x, y } = iso(c, r);
+  let d = "";
+  for (let l = hBot + 1; l < hTop; l++) {
+    const yy = y - l * BH;
+    d += side === "L" ? `M${x - TW / 2} ${yy}L${x} ${yy + TH / 2}` : `M${x} ${yy + TH / 2}L${x + TW / 2} ${yy}`;
+  }
+  // arête verticale avant
+  d += `M${x} ${y - hTop * BH + TH / 2}L${x} ${y - hBot * BH + TH / 2}`;
+  return `<path d="${d}" stroke="rgba(0,0,0,.12)" stroke-width="1.5"/>`;
+}
+
+function columnSvg(c, r) {
+  const t = terrain[r][c], m = MAT[t.mat], top = t.h;
+  let h = "";
+  // faces visibles : gauche si la case (c, r+1) est plus basse, droite si (c+1, r) est plus basse
+  for (const side of ["L", "R"]) {
+    const n = side === "L" ? T(c, r + 1) : T(c + 1, r);
+    const bot = n ? n.h : BASE;
+    if (bot >= top) continue;
+    const solid = t.mat === "water" ? "sand" : t.mat;
+    const sm = MAT[solid];
+    const split = Math.min(top, -1);
+    if (top > split) h += `<polygon points="${face(c, r, side, top, Math.max(split, bot))}" fill="${t.mat === "water" ? m[side] : sm[side]}"/>`;
+    if (split > bot) h += `<polygon points="${face(c, r, side, split, bot)}" fill="${top <= -1 && t.mat !== "water" ? sm[side] : DEEP[side]}"/>`;
+    if (top - bot > 1 || t.mat !== "water") h += levelLines(c, r, side, top, bot);
+    if (m.lip) h += `<polygon points="${face(c, r, side, top, top - .18)}" fill="${m.lip[side === "L" ? 0 : 1]}"/>`;
+  }
+  const shade = t.mat === "play" ? (c + r) % 2 : Math.floor(hash(c, r) * 3);
+  h += `<polygon points="${diamond(c, r, 1, top)}" fill="${m.top[shade]}"/>`;
+  if (t.mat === "water" && hash(r, c) < .3) {
+    const { x, y } = iso(c, r), yy = y - top * BH;
+    h += `<path d="M${x - 12} ${yy} h10 M${x + 2} ${yy + 4} h10" stroke="rgba(255,255,255,.45)" stroke-width="2.5"/>`;
+  }
+  return h;
+}
+
+function drawGround() {
+  const decoAt = {};
+  for (const d of decor) decoAt[`${d.c},${d.r}`] = d;
+  const rand = rng(11);
+  let h = "";
+  for (let s = 0; s <= 2 * N - 2; s++) {
+    for (let c = Math.max(0, s - N + 1); c <= Math.min(s, N - 1); c++) {
+      const r = s - c;
+      h += columnSvg(c, r);
+      const t = terrain[r][c];
+      const { x, y: y0 } = iso(c, r), y = y0 - t.h * BH;
+      if (t.mat === "play" || t.shore) {
+        if (rand() < .1) {
+          const ox = (rand() - .5) * 26, oy = (rand() - .5) * 10, col = rand() < .5 ? "#f4f4f4" : "#f2d23c";
+          h += `<g transform="translate(${x + ox} ${y + oy})"><rect x="-1" y="-7" width="2" height="7" fill="#3f8a25"/><rect x="-2.5" y="-10" width="5" height="4" fill="${col}"/></g>`;
+        }
+        if (rand() < .16) {
+          const ox = (rand() - .5) * 30, oy = (rand() - .5) * 10;
+          h += `<path d="M${x + ox} ${y + oy}v-6M${x + ox + 3} ${y + oy}v-8M${x + ox + 6} ${y + oy}v-5" stroke="#4a9428" stroke-width="2"/>`;
+        }
+      }
+      const d = decoAt[`${c},${r}`];
+      if (d) h += d.type === "oak" ? oakSvg(x, y) : d.type === "spruce" ? spruceSvg(x, y) : d.type === "rock" ? rockSvg(x, y) : bushSvg(x, y);
+    }
+  }
+  // limite de la zone constructible
+  const pt = (c, r, dx, dy) => { const p = iso(c, r); return `${p.x + dx},${p.y + dy}`; };
+  h += `<polygon points="${pt(A, A, 0, -TH / 2)} ${pt(B, A, TW / 2, 0)} ${pt(B, B, 0, TH / 2)} ${pt(A, B, -TW / 2, 0)}" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2.5" stroke-dasharray="10 8" stroke-linejoin="round" pointer-events="none"/>`;
+  document.getElementById("layer-ground").innerHTML = h;
+}
+
+// cube isométrique posé en (x, y) (centre de sa base), k = taille relative à un bloc
+function cube(x, y, k, col) {
+  const w = TW / 2 * k, d = TH / 2 * k, ht = BH * k;
+  return `<polygon points="${x - w},${y - ht} ${x},${y - ht + d} ${x},${y + d} ${x - w},${y}" fill="${col[1]}"/>`
+    + `<polygon points="${x},${y - ht + d} ${x + w},${y - ht} ${x + w},${y} ${x},${y + d}" fill="${col[2]}"/>`
+    + `<polygon points="${x},${y - ht - d} ${x + w},${y - ht} ${x},${y - ht + d} ${x - w},${y - ht}" fill="${col[0]}"/>`;
+}
+const LOG = ["#9a7547", "#6e4f2c", "#573d21"], LEAF = ["#4f9d2c", "#3f8224", "#336d1d"];
+const SPR_LOG = ["#6b4a2b", "#4e3520", "#3e2a19"], SPR = ["#3c6e3f", "#2f5a33", "#264a2a"];
+function oakSvg(x, y) {
+  return `<g pointer-events="none">${cube(x, y, .3, LOG)}${cube(x, y - BH * .3, .3, LOG)}${cube(x, y - BH * .55, .95, LEAF)}${cube(x, y - BH * 1.5, .5, LEAF)}</g>`;
+}
+function spruceSvg(x, y) {
+  return `<g pointer-events="none">${cube(x, y, .26, SPR_LOG)}${cube(x, y - BH * .26, .9, SPR)}${cube(x, y - BH * 1.05, .65, SPR)}${cube(x, y - BH * 1.6, .4, SPR)}${cube(x, y - BH * 1.95, .2, SPR)}</g>`;
+}
+function bushSvg(x, y) { return `<g pointer-events="none">${cube(x, y, .45, LEAF)}</g>`; }
+function rockSvg(x, y) { return `<g pointer-events="none">${cube(x - 6, y, .35, ["#a2a7ad", "#7d8288", "#686d73"])}${cube(x + 8, y + 3, .22, ["#a2a7ad", "#7d8288", "#686d73"])}</g>`; }
+
+function bookIcon(x, y, color, dim) {
+  const fill = dim ? "#c7cbd4" : color;
+  return `<g transform="translate(${x} ${y})">
+    <rect x="-7" y="-9" width="14" height="18" rx="2.5" fill="${fill}" stroke="#2c3550" stroke-width="1.6"/>
+    <rect x="-7" y="-9" width="3.5" height="18" rx="1.5" fill="rgba(0,0,0,.2)"/>
+    <rect x="-1" y="-4" width="6" height="2" rx="1" fill="#fff" opacity=".85"/>
+    <rect x="-1" y="0" width="4" height="2" rx="1" fill="#fff" opacity=".6"/>
+  </g>`;
+}
+
+function box(x, y, k, ht, col) {
+  const w = TW / 2 * k, d = TH / 2 * k;
+  return `<polygon points="${x - w},${y - ht} ${x},${y - ht + d} ${x},${y + d} ${x - w},${y}" fill="${col[1]}"/>`
+    + `<polygon points="${x},${y - ht + d} ${x + w},${y - ht} ${x + w},${y} ${x},${y + d}" fill="${col[2]}"/>`
+    + `<polygon points="${x},${y - ht - d} ${x + w},${y - ht} ${x},${y - ht + d} ${x - w},${y - ht}" fill="${col[0]}"/>`;
+}
+const WOOD = ["#c19a5b", "#9a7440", "#7d5d32"], WOOD_D = ["#a57d45", "#7e5c31", "#664a27"];
+function lecternSvg(x, y) {
+  return box(x, y, .62, 6, WOOD_D) + box(x, y - 6, .26, 20, WOOD) + box(x, y - 26, .72, 6, WOOD)
+    + box(x - 2, y - 32, .36, 4, ["#f4ecd8", "#c43d3d", "#a83232"]);
+}
+function villagerBody(x, y) {
+  return `<g transform="translate(${x} ${y}) scale(${VS})">
+    <ellipse cy="2" rx="16" ry="6" fill="rgba(0,0,0,.25)"/>
+    <rect x="-13" y="-36" width="26" height="37" rx="9" fill="#f2ede4" stroke="#4b3a2c" stroke-width="2.2"/>
+    <rect x="-2" y="-27" width="4" height="26" fill="#d9cfbf"/>
+    <rect x="-15" y="-29" width="30" height="10" rx="5" fill="#e3d8c6" stroke="#4b3a2c" stroke-width="2"/>
+    <rect x="-12" y="-63" width="24" height="28" rx="8" fill="#e9b88f" stroke="#4b3a2c" stroke-width="2.2"/>
+    <rect x="-13.5" y="-67" width="27" height="10" rx="5" fill="#c4473c" stroke="#4b3a2c" stroke-width="2"/>
+    <rect x="-9" y="-54" width="18" height="3.5" rx="1.5" fill="#5a3a22"/>
+    <rect x="-8" y="-50" width="5" height="4" rx="1" fill="#fff"/><rect x="-6" y="-50" width="3" height="4" rx="1" fill="#2a8a4e"/>
+    <rect x="3" y="-50" width="5" height="4" rx="1" fill="#fff"/><rect x="5" y="-50" width="3" height="4" rx="1" fill="#2a8a4e"/>
+    <rect x="-3.5" y="-49" width="7" height="13" rx="3.5" fill="#d99a6c" stroke="#4b3a2c" stroke-width="1.8"/>
+  </g>`;
+}
+
+function villagerSvg(v, opts = {}) {
+  const dir = v.dir || 0;
+  const { x, y } = iso(v.c, v.r);
+  const [lc, lr] = tilesOf(v.c, v.r, dir)[1];
+  const L = iso(lc, lr);
+  const useful = v.books.some(b => b.lvl > owned(b.e));
+  const dim = focusEnch && !v.books.some(b => b.e === focusEnch);
+  const sel = v.id === selectedVid;
+  let h = `<g class="villager${dim ? " dim" : ""}" data-vid="${v.id}" ${opts.ghost ? 'opacity=".65" pointer-events="none"' : ""}>`;
+  // socle sur les 2 cases
+  h += `<polygon points="${footprint(v.c, v.r, dir, .06)}" fill="#c9b78f" stroke="#9c8a63" stroke-width="2"/>`;
+  h += `<polygon points="${footprint(v.c, v.r, dir, .16)}" fill="#ddd0ae"/>`;
+  if (sel) h += `<polygon class="sel-ring" points="${footprint(v.c, v.r, dir, -.02)}" fill="none" stroke="#ffd23f" stroke-width="4" stroke-linejoin="round"/>`;
+  else if (focusEnch && !dim) h += `<polygon class="sel-ring" points="${footprint(v.c, v.r, dir, -.04)}" fill="rgba(167,139,250,.25)" stroke="#8b6cff" stroke-width="5" stroke-linejoin="round"/>`;
+  // ordre d'affichage : ce qui est derrière d'abord
+  const parts = [[v.c + v.r, villagerBody(x, y)], [lc + lr, lecternSvg(L.x, L.y)]].sort((a, b) => a[0] - b[0]);
+  h += parts.map(p => p[1]).join("");
+  // bulle de livres au-dessus de la tête
+  const bx = x, by = y - 30 * VS;
+  const books = v.books.slice(0, 4);
+  if (books.length) {
+    const bw = books.length * 17 + 12;
+    h += `<g class="bob"><rect x="${bx - bw / 2}" y="${by - 74}" width="${bw}" height="28" rx="14" fill="rgba(255,255,255,.96)" stroke="${useful ? "#22b26b" : "#cfd4de"}" stroke-width="2.5"/>`;
+    books.forEach((b, i) => {
+      const e = E[b.e];
+      h += bookIcon(bx - (books.length - 1) * 17 / 2 + i * 17, by - 60, CAT[e.cat].hex, b.lvl <= owned(b.e));
+    });
+    if (v.books.length > 4) h += `<circle cx="${bx + bw / 2}" cy="${by - 74}" r="10" fill="#6c5ce7"/><text class="vcount" x="${bx + bw / 2}" y="${by - 70}">+${v.books.length - 4}</text>`;
+    h += `</g>`;
+  } else if (!opts.ghost) {
+    h += `<g class="bob"><circle cx="${bx}" cy="${by - 58}" r="12" fill="rgba(255,255,255,.92)" stroke="#cfd4de" stroke-width="2"/><text x="${bx}" y="${by - 52}" text-anchor="middle" font-family="Lilita One" font-size="16" fill="#a3a9ba">?</text></g>`;
+  }
+  const hit = focusEnch && v.books.find(b => b.e === focusEnch);
+  if (hit && !opts.ghost) {
+    const e = E[hit.e], good = hit.lvl > owned(hit.e);
+    const label = e.max > 1 ? ROMAN[hit.lvl] : "✓";
+    const py = by - (books.length ? 92 : 80);
+    h += `<g class="bob" style="animation-duration:1.1s">
+      <path d="M${bx - 18} ${py - 30} h36 a6 6 0 0 1 6 6 v16 a6 6 0 0 1 -6 6 h-11 l-7 8 l-7 -8 h-11 a6 6 0 0 1 -6 -6 v-16 a6 6 0 0 1 6 -6 z" fill="${good ? "#ffd23f" : "#d5d9e2"}" stroke="#23304a" stroke-width="2.5" stroke-linejoin="round"/>
+      <text x="${bx}" y="${py - 10}" text-anchor="middle" font-family="Lilita One" font-size="17" fill="#23304a">${label}</text>
+    </g>`;
+  }
+  if (!opts.ghost) h += `<text class="vname" x="${(x + L.x) / 2}" y="${Math.max(y, L.y) + 30}">${esc(v.name)}</text>`;
+  h += `</g>`;
+  return h;
+}
+
+function renderMapObjects() {
+  const objs = [
+    ...S.villagers.map(v => {
+      const pos = drag && drag.moved && drag.vid === v.id && drag.tile ? drag.tile : v;
+      const [lc, lr] = tilesOf(pos.c, pos.r, v.dir || 0)[1];
+      return { depth: Math.max(pos.c + pos.r, lc + lr) + .1, html: () => villagerSvg({ ...v, c: pos.c, r: pos.r }) };
+    }),
+  ];
+  objs.sort((a, b) => a.depth - b.depth);
+  document.getElementById("layer-objects").innerHTML = objs.map(o => o.html()).join("");
+  document.getElementById("vill-count").textContent = `${S.villagers.length} bibliothécaire${S.villagers.length > 1 ? "s" : ""}`;
+}
+
+let hover = null;
+function renderHover() {
+  const layer = document.getElementById("layer-hover");
+  if (!hover || !(placing || dragOver || (drag && drag.moved)) || hover.c < 0 || hover.r < 0 || hover.c >= N || hover.r >= N) { layer.innerHTML = ""; return; }
+  let dir = 0, ok, fp;
+  if (dragOver) {
+    const occ = villAt(hover.c, hover.r);
+    if (occ) { dir = occ.dir; ok = true; fp = footprint(occ.c, occ.r, dir); }
+    else { dir = firstDir(hover.c, hover.r); ok = dir >= 0; fp = footprint(hover.c, hover.r, Math.max(dir, 0)); }
+  } else {
+    const v = drag && S.villagers.find(x => x.id === drag.vid);
+    dir = v ? v.dir : placeDir;
+    ok = canPlace(hover.c, hover.r, dir, v && v.id);
+    fp = footprint(hover.c, hover.r, dir);
+  }
+  let h = `<polygon points="${fp}" fill="${ok ? "rgba(255,255,255,.5)" : "rgba(236,91,91,.45)"}" stroke="${ok ? "#fff" : "#ec5b5b"}" stroke-width="2.5" stroke-linejoin="round"/>`;
+  if (placing && ok) h += villagerSvg({ id: -1, name: "", c: hover.c, r: hover.r, dir, books: [] }, { ghost: true });
+  layer.innerHTML = h;
+}
+
+// ---- Interactions carte ----
+let placing = false, placeDir = 0, drag = null, dragOver = false, selectedVid = null;
+const mapWrap = document.getElementById("map-wrap");
+const addBtn = document.getElementById("add-vill");
+
+function setPlacing(on) {
+  placing = on;
+  if (on) selectedVid = null;
+  mapWrap.classList.toggle("placing", on);
+  addBtn.classList.toggle("on", on);
+  addBtn.querySelector("span").textContent = on ? "Annuler" : "Bibliothécaire";
+  document.getElementById("rotate-place").hidden = !on;
+  if (!on) hover = null;
+  renderPanel(); renderMapObjects(); renderHint(); renderHover();
+}
+addBtn.onclick = () => setPlacing(!placing);
+
+document.getElementById("rotate-place").onclick = () => { placeDir = (placeDir + 1) % 4; renderHover(); };
+function rotateVillager(v) {
+  const d = firstDir(v.c, v.r, (v.dir + 1) % 4, v.id);
+  if (d < 0 || d === v.dir) return toast("Pas de place pour pivoter ici");
+  v.dir = d; commit();
+}
+
+function addVillager(c, r, books = [], dir = 0) {
+  const id = S.seq++;
+  let n = S.villagers.length + 1;
+  while (S.villagers.some(v => v.name === `Bibliothécaire ${n}`)) n++;
+  S.villagers.push({ id, name: `Bibliothécaire ${n}`, c, r, dir, books });
+  selectedVid = id;
+  commit();
+  return id;
+}
+
+// clic / glisser : déplacer un villageois, faire défiler la carte, ou placer
+let pan = null;
+svg.addEventListener("pointerdown", ev => {
+  const p = toSvg(ev.clientX, ev.clientY);
+  const g = ev.target.closest("[data-vid]");
+  const v = placing ? null : g ? S.villagers.find(x => x.id === +g.dataset.vid) : villagerNear(p.x, p.y);
+  if (v) drag = { vid: v.id, sx: ev.clientX, sy: ev.clientY, moved: false, tile: null };
+  else pan = { sx: ev.clientX, sy: ev.clientY, cx: view.cx, cy: view.cy, k: view.s, moved: false };
+  svg.setPointerCapture(ev.pointerId);
+});
+svg.addEventListener("pointermove", ev => {
+  const p = toSvg(ev.clientX, ev.clientY);
+  const t = tileAt(p.x, p.y);
+  if (drag) {
+    if (!drag.moved && Math.hypot(ev.clientX - drag.sx, ev.clientY - drag.sy) > 6) drag.moved = true;
+    if (drag.moved && (!hover || hover.c !== t.c || hover.r !== t.r)) {
+      hover = t;
+      const v = S.villagers.find(x => x.id === drag.vid);
+      if (canPlace(t.c, t.r, v.dir, v.id)) drag.tile = t;
+      renderMapObjects(); renderHover();
+    }
+    return;
+  }
+  if (pan) {
+    const dx = ev.clientX - pan.sx, dy = ev.clientY - pan.sy;
+    if (!pan.moved && Math.hypot(dx, dy) > 6) { pan.moved = true; mapWrap.classList.add("panning"); }
+    if (pan.moved) { view.cx = pan.cx - dx * pan.k; view.cy = pan.cy - dy * pan.k; applyView(); }
+    return;
+  }
+  if (placing && (!hover || hover.c !== t.c || hover.r !== t.r)) { hover = t; renderHover(); }
+  if (!placing && ev.pointerType !== "touch") showTip(villagerNear(p.x, p.y), ev);
+});
+svg.addEventListener("pointerup", ev => {
+  const p = toSvg(ev.clientX, ev.clientY);
+  if (drag) {
+    const v = S.villagers.find(x => x.id === drag.vid);
+    const d = drag;
+    drag = null; hover = null;
+    if (!d.moved) selectVillager(v.id);
+    else { if (d.tile) { v.c = d.tile.c; v.r = d.tile.r; save(); } renderMapObjects(); renderHover(); }
+    return;
+  }
+  const wasPan = pan && pan.moved;
+  pan = null; mapWrap.classList.remove("panning");
+  if (wasPan) return;
+  if (placing) {
+    const t = tileAt(p.x, p.y);
+    if (canPlace(t.c, t.r, placeDir)) { const d = placeDir; setPlacing(false); addVillager(t.c, t.r, [], d); toast("Bibliothécaire placé"); }
+    else toast("Il faut 2 cases libres dans la zone en pointillés (R pour pivoter)");
+    return;
+  }
+  if (selectedVid) selectVillager(null);
+});
+svg.addEventListener("pointercancel", () => { drag = null; pan = null; hover = null; mapWrap.classList.remove("panning"); renderMapObjects(); renderHover(); });
+svg.addEventListener("pointerleave", () => { showTip(null); if (placing) { hover = null; renderHover(); } });
+svg.addEventListener("pointerdown", () => showTip(null));
+
+// ---- aperçu des livres au survol ----
+const tip = document.getElementById("tip");
+let tipVid = null;
+function showTip(v, ev) {
+  if (!v || drag || (pan && pan.moved)) { tip.hidden = true; tipVid = null; return; }
+  if (tipVid !== v.id) {
+    tipVid = v.id;
+    tip.innerHTML = `<h4>${esc(v.name)}</h4>` + (v.books.length ? v.books.map(b => {
+      const e = E[b.e], useful = b.lvl > owned(b.e);
+      return `<div class="trow" style="--c:${CAT[e.cat].color}"><i></i><span>${esc(fullName(e, b.lvl))}</span><em class="${useful ? "useful" : "useless"}">${useful ? "utile" : "obtenu"}</em></div>`;
+    }).join("") : `<div class="tnone">Aucun livre pour l'instant</div>`);
+  }
+  const r = mapWrap.getBoundingClientRect();
+  let x = ev.clientX - r.left, y = ev.clientY - r.top;
+  tip.hidden = false;
+  if (x + 300 > r.width) x -= tip.offsetWidth + 28;
+  if (y + tip.offsetHeight + 30 > r.height) y -= tip.offsetHeight + 28;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+svg.addEventListener("wheel", ev => {
+  ev.preventDefault();
+  const p = toSvg(ev.clientX, ev.clientY);
+  zoomBy(Math.exp(-ev.deltaY * 0.0015), p.x, p.y);
+}, { passive: false });
+document.getElementById("zoom-in").onclick = () => zoomBy(1.3);
+document.getElementById("zoom-out").onclick = () => zoomBy(1 / 1.3);
+document.getElementById("zoom-reset").onclick = () => { view.s = 0; applyView(); };
+
+// glisser-déposer d'un livre depuis la liste
+mapWrap.addEventListener("dragover", ev => {
+  ev.preventDefault(); ev.dataTransfer.dropEffect = "copy";
+  dragOver = true;
+  const p = toSvg(ev.clientX, ev.clientY);
+  const v = villagerNear(p.x, p.y);
+  const t = v ? { c: v.c, r: v.r } : tileAt(p.x, p.y);
+  if (!hover || hover.c !== t.c || hover.r !== t.r) { hover = t; renderHover(); }
+});
+mapWrap.addEventListener("dragleave", ev => { if (!mapWrap.contains(ev.relatedTarget)) { dragOver = false; hover = null; renderHover(); } });
+mapWrap.addEventListener("drop", ev => {
+  ev.preventDefault();
+  dragOver = false; hover = null; renderHover();
+  const id = ev.dataTransfer.getData("text/plain"); const e = E[id]; if (!e) return;
+  const p = toSvg(ev.clientX, ev.clientY);
+  const v = villagerNear(p.x, p.y);
+  if (v) return assignBook(v, id);
+  const t = tileAt(p.x, p.y);
+  const d = firstDir(t.c, t.r);
+  if (d < 0) return toast("Dépose le livre sur un bibliothécaire ou sur 2 cases libres de la zone");
+  addVillager(t.c, t.r, [{ e: id, lvl: e.max }], d);
+  toast(`Nouveau bibliothécaire avec ${fullName(e)}`);
+});
+
+function assignBook(v, id) {
+  const e = E[id];
+  if (e.nov) return toast("Cet enchantement n'est pas vendu par les villageois");
+  if (v.books.some(b => b.e === id)) { selectVillager(v.id); return toast(`${v.name} propose déjà ${e.name}`); }
+  v.books.push({ e: id, lvl: e.max });
+  selectedVid = v.id;
+  commit();
+  toast(`${fullName(e)} → ${v.name}`);
+}
+
+// ---- Panneau villageois ----
+function selectVillager(id) { selectedVid = id; renderMapObjects(); renderPanel(); renderHint(); }
+function renderPanel() {
+  const panel = document.getElementById("vpanel");
+  const v = S.villagers.find(x => x.id === selectedVid);
+  if (!v) { panel.hidden = true; return; }
+  panel.hidden = false;
+  const avail = ENCH.filter(e => !e.nov && !v.books.some(b => b.e === e.id));
+  let books = v.books.map((b, i) => {
+    const e = E[b.e], cur = owned(b.e), useful = b.lvl > cur;
+    const opts = Array.from({ length: e.max }, (_, k) => `<option value="${k + 1}"${k + 1 === b.lvl ? " selected" : ""}>${ROMAN[k + 1]}</option>`).join("");
+    const state = !useful ? "Déjà obtenu" : cur ? `Meilleur que ton niveau ${ROMAN[cur]}` : "Tu ne l'as pas encore";
+    return `<div class="book">
+      <svg class="bicon" viewBox="-9 -11 18 22">${bookIcon(0, 0, CAT[e.cat].hex, false)}</svg>
+      <div class="binfo"><div class="bname">${e.name}</div><div class="bstate ${useful ? "useful" : "useless"}">${state}</div></div>
+      ${e.max > 1 ? `<select data-lvl="${i}" aria-label="Niveau proposé">${opts}</select>` : ""}
+      <button class="bdel" data-del="${i}" aria-label="Retirer">×</button>
+    </div>`;
+  }).join("");
+  if (!v.books.length) books = `<div class="vempty">Aucun livre. Glisse-en un depuis la liste ou choisis-le ci-dessous.</div>`;
+  const groups = CATS.map(c => {
+    const list = avail.filter(e => e.cat === c.id);
+    return list.length ? `<optgroup label="${c.name}">${list.map(e => `<option value="${e.id}">${fullName(e)}</option>`).join("")}</optgroup>` : "";
+  }).join("");
+  panel.innerHTML = `
+    <div class="vpanel-head">
+      <div class="vavatar"><svg width="24" height="28" viewBox="-15 -69 30 70">
+        <rect x="-13" y="-36" width="26" height="36" rx="9" fill="#f2ede4" stroke="#4b3a2c" stroke-width="2.2"/>
+        <rect x="-12" y="-63" width="24" height="28" rx="8" fill="#e9b88f" stroke="#4b3a2c" stroke-width="2.2"/>
+        <rect x="-13.5" y="-67" width="27" height="10" rx="5" fill="#c4473c" stroke="#4b3a2c" stroke-width="2"/>
+        <rect x="-3.5" y="-49" width="7" height="13" rx="3.5" fill="#d99a6c" stroke="#4b3a2c" stroke-width="1.8"/></svg></div>
+      <input id="vname" value="${esc(v.name)}" aria-label="Nom du villageois" maxlength="28">
+      <button class="icon-btn" id="vclose" aria-label="Fermer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="vlabel">Livres proposés</div>
+    ${books}
+    ${avail.length ? `<div class="vadd"><select id="vadd" aria-label="Ajouter un livre"><option value="">+ Ajouter un livre…</option>${groups}</select></div>` : ""}
+    <div class="vfoot">
+      <button class="btn ghost-danger" id="vdel">Supprimer</button>
+      <div>
+        <button class="btn" id="vrot" title="Pivoter (R)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>Pivoter</button>
+        <button class="btn" id="vdone">Terminé</button>
+      </div>
+    </div>`;
+  panel.querySelector("#vrot").onclick = () => rotateVillager(v);
+  panel.querySelector("#vname").addEventListener("change", ev => { v.name = ev.target.value.trim() || v.name; commit(); });
+  panel.querySelector("#vclose").onclick = panel.querySelector("#vdone").onclick = () => selectVillager(null);
+  panel.querySelector("#vdel").onclick = async () => {
+    if (!await ask(`${v.name} et ses livres seront retirés de la carte.`, "Supprimer", `Supprimer ${v.name} ?`)) return;
+    S.villagers = S.villagers.filter(x => x.id !== v.id); selectedVid = null; commit();
+  };
+  panel.querySelectorAll("[data-lvl]").forEach(s => s.onchange = () => { v.books[+s.dataset.lvl].lvl = +s.value; commit(); });
+  panel.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { v.books.splice(+b.dataset.del, 1); commit(); });
+  const add = panel.querySelector("#vadd");
+  if (add) add.onchange = () => { if (add.value) assignBook(v, add.value); };
+}
+
+function renderHint() {
+  const el = document.getElementById("map-hint");
+  let tips;
+  if (placing) tips = ["Clique sur 2 cases libres de la zone en pointillés", "R pour pivoter · Échap pour annuler"];
+  else if (!S.villagers.length) tips = ["Ajoute un bibliothécaire avec le bouton en haut", "ou glisse un livre directement sur l'herbe"];
+  else tips = ["Glisse un bibliothécaire pour le déplacer", "Clique dessus pour gérer ses livres · R pour pivoter", "Livre gris = déjà obtenu"];
+  el.innerHTML = selectedVid ? "" : tips.map(t => `<span class="chip">${t}</span>`).join("");
+}
+
+document.addEventListener("keydown", ev => {
+  if (dlg.open || enchDlg.open || cullDlg.open || askDlg.open || ev.target.closest("input, select, textarea")) return;
+  if (ev.key === "Escape") { if (placing) setPlacing(false); else if (selectedVid) selectVillager(null); }
+  if (ev.key === "r" || ev.key === "R") {
+    if (placing) { placeDir = (placeDir + 1) % 4; renderHover(); }
+    else if (selectedVid) rotateVillager(S.villagers.find(v => v.id === selectedVid));
+  }
+});
+
+// ================= Menu =================
+const menu = document.getElementById("menu");
+document.getElementById("menu-btn").onclick = ev => { ev.stopPropagation(); menu.hidden = !menu.hidden; };
+enchDlg.addEventListener("click", ev => { if (!ev.target.closest(".menu")) menu.hidden = true; });
+document.getElementById("export").onclick = () => {
+  const blob = new Blob([JSON.stringify(S, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "grimoire-sauvegarde.json"; a.click();
+  URL.revokeObjectURL(a.href); menu.hidden = true;
+};
+document.getElementById("import").onclick = () => { document.getElementById("file").click(); menu.hidden = true; };
+document.getElementById("file").onchange = async ev => {
+  const f = ev.target.files[0]; if (!f) return;
+  try {
+    const d = JSON.parse(await f.text());
+    if (!d || typeof d.owned !== "object" || !Array.isArray(d.villagers)) throw 0;
+    S = { owned: d.owned, villagers: d.villagers, seq: d.seq || (Math.max(0, ...d.villagers.map(v => v.id)) + 1) };
+    selectedVid = null; commit(); toast("Sauvegarde importée");
+  } catch { toast("Fichier invalide"); }
+  ev.target.value = "";
+};
+document.getElementById("reset").onclick = async () => {
+  menu.hidden = true;
+  if (await ask("Tous les enchantements cochés et tous les bibliothécaires seront effacés.", "Tout effacer", "Tout réinitialiser ?")) { S = { owned: {}, villagers: [], seq: 1 }; selectedVid = null; commit(); }
+};
+
+const askDlg = document.getElementById("ask-dlg");
+function ask(msg, yes = "Confirmer", title = "Confirmer") {
+  document.getElementById("ask-title").textContent = title;
+  document.getElementById("ask-msg").textContent = msg;
+  document.getElementById("ask-yes").textContent = yes;
+  askDlg.showModal();
+  return new Promise(resolve => {
+    const done = v => { askDlg.close(); resolve(v); };
+    document.getElementById("ask-yes").onclick = () => done(true);
+    document.getElementById("ask-no").onclick = () => done(false);
+    askDlg.oncancel = ev => { ev.preventDefault(); done(false); };
+  });
+}
+
+let toastT;
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+// ================= Bibliothécaires superflus =================
+// Un bibliothécaire est superflu si chacun de ses livres est proposé par un autre, au même niveau ou plus.
+const covers = (list, e, lvl) => list.filter(v => v.books.some(b => b.e === e && b.lvl >= lvl));
+function cullAnalysis() {
+  const vs = S.villagers;
+  const alone = vs.filter(v => v.books.every(b => covers(vs.filter(o => o !== v), b.e, b.lvl).length));
+  // ensemble éliminable en une fois : on retire d'abord les moins utiles, en revérifiant à chaque fois
+  let kept = [...vs];
+  const together = [];
+  for (const v of [...alone].sort((a, b) => a.books.length - b.books.length)) {
+    const rest = kept.filter(o => o !== v);
+    if (v.books.every(b => covers(rest, b.e, b.lvl).length)) { kept = rest; together.push(v); }
+  }
+  return { alone, together };
+}
+function renderCullCount() {
+  const n = cullAnalysis().together.length, b = document.getElementById("cull-count");
+  b.textContent = n; b.classList.toggle("zero", !n);
+}
+const cullDlg = document.getElementById("cull-dlg");
+function renderCull() {
+  const body = document.getElementById("cull-body");
+  const { alone, together } = cullAnalysis();
+  if (!S.villagers.length) { body.innerHTML = `<div class="cull-sum none"><span>Place d'abord des bibliothécaires sur la carte.</span></div>`; return; }
+  if (!alone.length) { body.innerHTML = `<div class="cull-sum none"><span>Tous tes bibliothécaires sont indispensables : chacun propose au moins un livre introuvable ailleurs.</span></div>`; return; }
+  let h = `<div class="cull-sum"><span>Tu peux éliminer <b>${together.length}</b> bibliothécaire${together.length > 1 ? "s" : ""} sans perdre aucun livre.</span>
+    <button class="btn ghost-danger" id="cull-all">Tout éliminer</button></div>`;
+  for (const v of alone) {
+    const inSet = together.includes(v);
+    const others = S.villagers.filter(o => o !== v);
+    h += `<div class="cv">
+      <div class="cv-top"><strong>${esc(v.name)}</strong>${inSet ? `<span class="tag ok">Éliminable</span>` : `<span class="tag alone">Seulement si tu gardes les autres</span>`}</div>
+      ${v.books.length ? v.books.map(b => {
+        const e = E[b.e];
+        const who = covers(others, b.e, b.lvl).map(o => `${esc(o.name)}${e.max > 1 ? " (" + ROMAN[o.books.find(x => x.e === b.e).lvl] + ")" : ""}`).join(", ");
+        return `<div class="cv-book" style="--c:${CAT[e.cat].color}"><i></i><b>${esc(fullName(e, b.lvl))}</b><span>aussi chez ${who}</span></div>`;
+      }).join("") : `<div class="cv-book"><span>Ne propose aucun livre.</span></div>`}
+      <div class="cv-acts"><button class="btn" data-see="${v.id}">Voir sur la carte</button><button class="btn ghost-danger" data-kill="${v.id}">Éliminer</button></div>
+    </div>`;
+  }
+  body.innerHTML = h;
+  body.querySelector("#cull-all").onclick = async () => {
+    if (!await ask(`${together.map(v => v.name).join(", ")} seront retirés de la carte. Tu gardes l'accès à tous tes livres.`, "Éliminer", `Éliminer ${together.length} bibliothécaire${together.length > 1 ? "s" : ""} ?`)) return;
+    const ids = new Set(together.map(v => v.id));
+    S.villagers = S.villagers.filter(v => !ids.has(v.id));
+    if (ids.has(selectedVid)) selectedVid = null;
+    commit(); renderCull(); toast(`${ids.size} bibliothécaire${ids.size > 1 ? "s" : ""} éliminé${ids.size > 1 ? "s" : ""}`);
+  };
+  body.querySelectorAll("[data-kill]").forEach(b => b.onclick = async () => {
+    const v = S.villagers.find(x => x.id === +b.dataset.kill);
+    if (!await ask(`${v.name} sera retiré de la carte.`, "Éliminer", `Éliminer ${v.name} ?`)) return;
+    S.villagers = S.villagers.filter(x => x !== v);
+    if (selectedVid === v.id) selectedVid = null;
+    commit(); renderCull();
+  });
+  body.querySelectorAll("[data-see]").forEach(b => b.onclick = () => {
+    const v = S.villagers.find(x => x.id === +b.dataset.see);
+    cullDlg.close();
+    const p = iso(v.c, v.r);
+    view.s = Math.min(view.s, sMax / 1.8); view.cx = p.x; view.cy = p.y - BH; applyView();
+    selectVillager(v.id);
+  });
+}
+document.getElementById("cull-btn").onclick = () => { renderCull(); cullDlg.showModal(); };
+document.getElementById("cull-close").onclick = () => cullDlg.close();
+cullDlg.addEventListener("click", ev => { if (ev.target === cullDlg) cullDlg.close(); });
+
+function renderAll() { renderCullCount(); renderStats(); renderEnchants(); renderSide(); renderMapObjects(); renderPanel(); renderFocusChip(); renderHint(); }
+
+drawSky(); drawGround();
+renderAll();
+</script>
+</body>
+</html>
