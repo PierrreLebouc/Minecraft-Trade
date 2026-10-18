@@ -196,6 +196,7 @@
   .row.nov { cursor: default; opacity: .55; }
   .row .rname { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .row .rname b { color: var(--c); font-weight: 800; margin-left: 2px; }
+  .row .rmax { font-size: 11px; font-weight: 600; color: var(--faint); margin-left: 2px; }
   .row .rcur { font-size: 12px; font-weight: 700; color: var(--blue); background: var(--blue-soft); padding: 1px 7px; border-radius: 99px; }
   .row .rvill { font-size: 12px; font-weight: 700; color: var(--green); background: var(--green-soft); padding: 1px 7px; border-radius: 99px; display: inline-flex; gap: 4px; align-items: center; }
   .mini-tick {
@@ -677,7 +678,16 @@ const offers = id => S.villagers.flatMap(v => v.books.filter(b => b.e === id).ma
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
-function commit() { save(); renderAll(); }
+// Règle : tout livre proposé par un bibliothécaire est possédé, au moins à ce niveau.
+function ensureOwned(st = S) {
+  let changed = false;
+  for (const v of st.villagers) for (const b of v.books) {
+    if ((st.owned[b.e] || 0) < b.lvl) { st.owned[b.e] = b.lvl; changed = true; }
+  }
+  return changed;
+}
+if (ensureOwned()) { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} }
+function commit() { ensureOwned(); save(); renderAll(); }
 function setOwned(id, lvl) { if (lvl) S.owned[id] = lvl; else delete S.owned[id]; commit(); }
 
 const CHECK = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
@@ -818,8 +828,7 @@ function renderSide() {
       const st = l === e.max ? "max" : l ? "low" : "";
       html += `<div class="row${focusEnch === e.id ? " sel" : ""}${e.nov ? " nov" : ""}" data-id="${e.id}" draggable="${!e.nov}" style="--c:${c.color}" title="${e.nov ? "Impossible à obtenir chez les villageois" : "Glisse sur la carte · clique pour repérer"}">
         <button class="mini-tick ${st}" data-tick aria-label="Possédé">${CHECK}</button>
-        <span class="rname">${e.name}${e.max > 1 ? ` <b>${ROMAN[e.max]}</b>` : ""}</span>
-        ${l && l < e.max ? `<span class="rcur" title="Niveau actuel">${ROMAN[l]}</span>` : ""}
+        <span class="rname">${e.name}${e.max > 1 ? ` <b>${ROMAN[l || e.max]}</b>` : ""}${l && l < e.max ? ` <small class="rmax">max ${ROMAN[e.max]}</small>` : ""}</span>
         ${n ? `<span class="rvill" title="Villageois qui le proposent">${PERSON}${n}</span>` : ""}
       </div>`;
     }
@@ -1227,7 +1236,7 @@ function villagerSvg(v, opts = {}) {
   const { x, y } = iso(v.c, v.r);
   const [lc, lr] = tilesOf(v.c, v.r, dir)[1];
   const L = iso(lc, lr);
-  const useful = v.books.some(b => b.lvl > owned(b.e));
+  const useful = v.books.some(b => b.lvl >= owned(b.e));
   const dim = focusEnch && !v.books.some(b => b.e === focusEnch);
   const sel = v.id === selectedVid;
   let h = `<g class="villager${dim ? " dim" : ""}" data-vid="${v.id}" ${opts.ghost ? 'opacity=".65" pointer-events="none"' : ""}>`;
@@ -1247,7 +1256,7 @@ function villagerSvg(v, opts = {}) {
     h += `<g class="bob"><rect x="${bx - bw / 2}" y="${by - 74}" width="${bw}" height="28" rx="14" fill="rgba(255,255,255,.96)" stroke="${useful ? "#22b26b" : "#cfd4de"}" stroke-width="2.5"/>`;
     books.forEach((b, i) => {
       const e = E[b.e];
-      h += bookIcon(bx - (books.length - 1) * 17 / 2 + i * 17, by - 60, CAT[e.cat].hex, b.lvl <= owned(b.e));
+      h += bookIcon(bx - (books.length - 1) * 17 / 2 + i * 17, by - 60, CAT[e.cat].hex, b.lvl < owned(b.e));
     });
     if (v.books.length > 4) h += `<circle cx="${bx + bw / 2}" cy="${by - 74}" r="10" fill="#6c5ce7"/><text class="vcount" x="${bx + bw / 2}" y="${by - 70}">+${v.books.length - 4}</text>`;
     h += `</g>`;
@@ -1256,7 +1265,7 @@ function villagerSvg(v, opts = {}) {
   }
   const hit = focusEnch && v.books.find(b => b.e === focusEnch);
   if (hit && !opts.ghost) {
-    const e = E[hit.e], good = hit.lvl > owned(hit.e);
+    const e = E[hit.e], good = hit.lvl >= owned(hit.e);
     const label = e.max > 1 ? ROMAN[hit.lvl] : "✓";
     const py = by - (books.length ? 92 : 80);
     h += `<g class="bob" style="animation-duration:1.1s">
@@ -1477,8 +1486,8 @@ function showTip(v, ev) {
   if (tipVid !== v.id) {
     tipVid = v.id;
     tip.innerHTML = `<h4>${v.fav ? `<span style="color:#f0a020">★</span> ` : ""}${esc(v.name)}</h4>` + (v.books.length ? v.books.map(b => {
-      const e = E[b.e], useful = b.lvl > owned(b.e);
-      return `<div class="trow" style="--c:${CAT[e.cat].color}"><i></i><span>${esc(fullName(e, b.lvl))}</span><em class="${useful ? "useful" : "useless"}">${useful ? "utile" : "obtenu"}</em></div>`;
+      const e = E[b.e], best = b.lvl >= owned(b.e);
+      return `<div class="trow" style="--c:${CAT[e.cat].color}"><i></i><span>${esc(fullName(e, b.lvl))}</span><em class="${best ? "useful" : "useless"}">${best ? "meilleur" : "tu as mieux"}</em></div>`;
     }).join("") : `<div class="tnone">Aucun livre pour l'instant</div>`);
   }
   const r = mapWrap.getBoundingClientRect();
@@ -1558,9 +1567,9 @@ function renderPanel() {
   // deux menus : les livres que tu possèdes, et tous les autres (cochés automatiquement une fois ajoutés)
   const avail = ENCH.filter(e => !e.nov && !v.books.some(b => b.e === e.id));
   let books = v.books.map((b, i) => {
-    const e = E[b.e], cur = owned(b.e), useful = b.lvl > cur;
+    const e = E[b.e], cur = owned(b.e), useful = b.lvl >= cur;
     const opts = Array.from({ length: e.max }, (_, k) => `<option value="${k + 1}"${k + 1 === b.lvl ? " selected" : ""}>${ROMAN[k + 1]}</option>`).join("");
-    const state = !useful ? "Déjà obtenu" : cur ? `Meilleur que ton niveau ${ROMAN[cur]}` : "Tu ne l'as pas encore";
+    const state = useful ? "Ton meilleur niveau" : `Tu as mieux : ${fullName(e, cur)}`;
     return `<div class="book">
       <svg class="bicon" viewBox="-9 -11 18 22">${bookIcon(0, 0, CAT[e.cat].hex, false)}</svg>
       <div class="binfo"><div class="bname">${e.name}</div><div class="bstate ${useful ? "useful" : "useless"}">${state}</div></div>
@@ -1617,7 +1626,7 @@ function renderHint() {
   let tips;
   if (placing) tips = ["Clique sur 2 cases libres de la zone en pointillés", "R pour pivoter · Échap pour annuler"];
   else if (!S.villagers.length) tips = ["Ajoute un bibliothécaire avec le bouton en haut", "ou glisse un livre directement sur l'herbe"];
-  else tips = ["Glisse un bibliothécaire pour le déplacer", "Clique dessus pour gérer ses livres · R pivoter · F favori", "Livre gris = déjà obtenu"];
+  else tips = ["Glisse un bibliothécaire pour le déplacer", "Clique dessus pour gérer ses livres · R pivoter · F favori", "Livre gris = tu as mieux ailleurs"];
   el.innerHTML = selectedVid ? "" : tips.map(t => `<span class="chip">${t}</span>`).join("");
 }
 
@@ -1791,7 +1800,9 @@ function adopt(d) {
   st.owned ||= {}; st.villagers ||= []; st.seq ||= 1;
   S = migrate(st);
   for (const v of S.villagers) if (v.dir == null) v.dir = 0;
+  const fixed = ensureOwned();
   try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {}
+  if (fixed) setTimeout(queueUpload); // renvoie l'état corrigé aux autres appareils
   if (!S.villagers.some(v => v.id === selectedVid)) selectedVid = null;
   renderAll();
 }
