@@ -1501,6 +1501,18 @@ function bookFor(id) {
   if (!had) S.owned[id] = lvl;
   return { e: id, lvl, added: !had };
 }
+// Changer le niveau d'un livre chez un bibliothécaire met à jour ton niveau possédé :
+// ton niveau = le plus haut que tu as. S'il venait de ce livre, il suit le nouveau niveau
+// (sans descendre sous ce que proposent tes autres bibliothécaires).
+function setBookLevel(v, book, lvl) {
+  const old = book.lvl, had = owned(book.e);
+  book.lvl = lvl;
+  if (lvl > had) S.owned[book.e] = lvl;
+  else if (had === old) {
+    const others = S.villagers.filter(o => o !== v).flatMap(o => o.books.filter(b => b.e === book.e).map(b => b.lvl));
+    S.owned[book.e] = Math.max(lvl, ...others);
+  }
+}
 function assignBook(v, id) {
   const e = E[id];
   if (e.nov) return toast("Cet enchantement n'est pas vendu par les villageois");
@@ -1571,7 +1583,7 @@ function renderPanel() {
     if (!await ask(`${v.name} et ses livres seront retirés de la carte.`, "Supprimer", `Supprimer ${v.name} ?`)) return;
     S.villagers = S.villagers.filter(x => x.id !== v.id); selectedVid = null; commit();
   };
-  panel.querySelectorAll("[data-lvl]").forEach(s => s.onchange = () => { v.books[+s.dataset.lvl].lvl = +s.value; commit(); });
+  panel.querySelectorAll("[data-lvl]").forEach(s => s.onchange = () => { setBookLevel(v, v.books[+s.dataset.lvl], +s.value); commit(); });
   panel.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { v.books.splice(+b.dataset.del, 1); commit(); });
   panel.querySelectorAll(".vadd-sel").forEach(sel => sel.onchange = () => { if (sel.value) assignBook(v, sel.value); });
 }
