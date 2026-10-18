@@ -121,6 +121,11 @@
   .brand-logo { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: linear-gradient(135deg, #7b5cff, #3fa2f0); }
   .side-head p { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
   .sheet-toggle { display: none; }
+  .side-seg { margin-top: 10px; flex-wrap: nowrap; }
+  .side-seg button { flex: 1; }
+  .side-seg span { font-size: 11px; color: var(--faint); }
+  .side-empty { padding: 18px 12px; text-align: center; color: var(--muted); font-size: 13px; }
+  .side-empty .btn { margin-top: 10px; }
   .side { transition: transform .28s cubic-bezier(.3,.7,.2,1); }
   body.side-collapsed .side { transform: translateX(calc(-100% - 16px)); }
   .side-tab {
@@ -398,7 +403,7 @@
     .side.open { transform: none; }
     .side-head { cursor: pointer; padding-top: 10px; }
     .side-head::before { content: ""; display: block; width: 40px; height: 5px; border-radius: 99px; background: #d5d9e5; margin: 0 auto 8px; }
-    .side:not(.open) .side-head p, .side:not(.open) .side-head .search { display: none; }
+    .side:not(.open) .side-head p, .side:not(.open) .side-head .search, .side:not(.open) .side-seg { display: none; }
     .sheet-toggle { display: inline; margin-left: auto; font-size: 13px; font-weight: 600; color: var(--accent); }
     .side-tab { display: none; }
     body.side-collapsed .side { transform: translateY(calc(100% - 66px)); }
@@ -465,6 +470,10 @@
     </div>
     <p>Glisse un livre sur un bibliothécaire, ou sur l'herbe pour en créer un.</p>
     <input type="search" class="search" id="side-q" placeholder="Rechercher un livre…" autocomplete="off">
+    <div class="seg side-seg" id="side-filter">
+      <button data-sf="owned">Mes livres <span id="sf-count"></span></button>
+      <button data-sf="all">Tous</button>
+    </div>
   </div>
   <div class="side-list" id="side-list"></div>
   <div class="side-foot">
@@ -763,11 +772,16 @@ dlg.addEventListener("click", ev => { if (ev.target === dlg) dlg.close(); });
 
 // ================= Liste latérale =================
 let sideQuery = "", focusEnch = null;
+// par défaut, le grimoire ne montre que les livres que tu possèdes
+let sideFilter = "owned";
+try { sideFilter = localStorage.getItem("grimoire-side-filter") || "owned"; } catch {}
 function renderSide() {
   const root = document.getElementById("side-list");
+  document.querySelectorAll("#side-filter button").forEach(b => b.classList.toggle("on", b.dataset.sf === sideFilter));
+  document.getElementById("sf-count").textContent = ENCH.filter(e => owned(e.id)).length;
   let html = "";
   for (const c of CATS) {
-    const items = ENCH.filter(e => e.cat === c.id && (!sideQuery || norm(e.name).includes(sideQuery)));
+    const items = ENCH.filter(e => e.cat === c.id && (sideFilter === "all" || owned(e.id)) && (!sideQuery || norm(e.name).includes(sideQuery)));
     if (!items.length) continue;
     html += `<div class="side-cat" style="--c:${c.color}"><i></i>${c.name}</div>`;
     for (const e of items) {
@@ -781,9 +795,19 @@ function renderSide() {
       </div>`;
     }
   }
+  if (!html) html = sideFilter === "owned" && !sideQuery
+    ? `<div class="side-empty">Tu n'as encore coché aucun enchantement.<br>Utilise le livre en haut à droite pour indiquer ceux que tu possèdes.<br><button class="btn" data-sf="all">Voir tous les livres</button></div>`
+    : `<div class="side-empty">Aucun livre ne correspond.</div>`;
   root.innerHTML = html;
 }
+function setSideFilter(f) {
+  sideFilter = f;
+  try { localStorage.setItem("grimoire-side-filter", f); } catch {}
+  renderSide();
+}
+document.getElementById("side-filter").addEventListener("click", ev => { const b = ev.target.closest("[data-sf]"); if (b) setSideFilter(b.dataset.sf); });
 const sideList = document.getElementById("side-list");
+sideList.addEventListener("click", ev => { const b = ev.target.closest(".side-empty [data-sf]"); if (b) setSideFilter(b.dataset.sf); });
 sideList.addEventListener("click", ev => {
   const row = ev.target.closest(".row"); if (!row) return;
   const e = E[row.dataset.id];
