@@ -313,6 +313,9 @@
   .vcount { font-family: "Lilita One", sans-serif; font-size: 12px; fill: #fff; text-anchor: middle; }
   .villager { cursor: grab; }
   .villager.dim { opacity: .28; filter: grayscale(.7); }
+  .villager.extra { opacity: .45; }
+  .villager.extra.dim { opacity: .2; }
+  .tip .textra { margin-top: 6px; font-size: 12px; font-weight: 600; color: #b9740a; }
   .sel-ring { animation: pulse 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
   @keyframes pulse { 50% { transform: scale(1.12); opacity: .6; } }
   .bob { animation: bob 2.4s ease-in-out infinite; }
@@ -1233,7 +1236,8 @@ function villagerSvg(v, opts = {}) {
   const useful = v.books.some(b => b.lvl >= owned(b.e));
   const dim = focusEnch && !v.books.some(b => b.e === focusEnch);
   const sel = v.id === selectedVid;
-  let h = `<g class="villager${dim ? " dim" : ""}" data-vid="${v.id}" ${opts.ghost ? 'opacity=".65" pointer-events="none"' : ""}>`;
+  const extra = !opts.ghost && cullAnalysis().ids.has(v.id);
+  let h = `<g class="villager${dim ? " dim" : ""}${extra ? " extra" : ""}" data-vid="${v.id}" ${opts.ghost ? 'opacity=".65" pointer-events="none"' : ""}>`;
   // socle sur les 2 cases
   h += `<polygon points="${footprint(v.c, v.r, dir, .06)}" fill="#c9b78f" stroke="#9c8a63" stroke-width="2"/>`;
   h += `<polygon points="${footprint(v.c, v.r, dir, .16)}" fill="#ddd0ae"/>`;
@@ -1482,7 +1486,7 @@ function showTip(v, ev) {
     tip.innerHTML = `<h4>${v.fav ? `<span style="color:#f0a020">★</span> ` : ""}${esc(v.name)}</h4>` + (v.books.length ? v.books.map(b => {
       const e = E[b.e], best = b.lvl >= owned(b.e);
       return `<div class="trow" style="--c:${CAT[e.cat].color}"><i></i><span>${esc(fullName(e, b.lvl))}</span><em class="${best ? "useful" : "useless"}">${best ? "meilleur" : "tu as mieux"}</em></div>`;
-    }).join("") : `<div class="tnone">Aucun livre pour l'instant</div>`);
+    }).join("") : `<div class="tnone">Aucun livre pour l'instant</div>`) + (cullAnalysis().ids.has(v.id) ? `<div class="textra">Superflu : peut être éliminé sans perdre de livre</div>` : "");
   }
   const r = mapWrap.getBoundingClientRect();
   let x = ev.clientX - r.left, y = ev.clientY - r.top;
@@ -1684,17 +1688,55 @@ function toast(msg) {
 // ================= Bibliothécaires superflus =================
 // Un bibliothécaire est superflu si chacun de ses livres est proposé par un autre, au même niveau ou plus.
 const covers = (list, e, lvl) => list.filter(v => v.books.some(b => b.e === e && b.lvl >= lvl));
+// Plus petit groupe de bibliothécaires à garder pour conserver chaque livre à son meilleur niveau
+// (couverture minimale exacte, recherche avec élagage). Les favoris sont toujours gardés.
+function minimalKeep(vs) {
+  const best = {};
+  for (const v of vs) for (const b of v.books) best[b.e] = Math.max(best[b.e] || 0, b.lvl);
+  const reqs = Object.keys(best);
+  const coverOf = v => new Set(v.books.filter(b => b.lvl >= best[b.e]).map(b => b.e));
+  const cov = new Map(vs.map(v => [v, coverOf(v)]));
+  const coverers = Object.fromEntries(reqs.map(e => [e, vs.filter(v => cov.get(v).has(e))]));
+  // gardés d'office : favoris et seuls vendeurs d'un livre à son meilleur niveau
+  const forced = new Set(vs.filter(v => v.fav));
+  for (const e of reqs) if (coverers[e].length === 1) forced.add(coverers[e][0]);
+  const left0 = new Set(reqs.filter(e => !coverers[e].some(v => forced.has(v))));
+  const cands = vs.filter(v => !forced.has(v) && cov.get(v).size);
+  let bestPick = null, nodes = 0;
+  // solution gloutonne de départ (borne pour l'élagage)
+  { const left = new Set(left0), pick = [];
+    while (left.size) {
+      let top = null, n = 0;
+      for (const v of cands) { const k = [...cov.get(v)].filter(e => left.has(e)).length; if (k > n) { n = k; top = v; } }
+      if (!top) break;
+      pick.push(top); for (const e of cov.get(top)) left.delete(e);
+    }
+    bestPick = pick; }
+  (function dfs(left, pick) {
+    if (++nodes > 200000) return;
+    if (!left.size) { if (pick.length < bestPick.length) bestPick = [...pick]; return; }
+    if (pick.length + 1 >= bestPick.length) return;
+    // le livre le plus difficile à couvrir d'abord
+    let pivot = null, opts = null;
+    for (const e of left) { const o = coverers[e].filter(v => !forced.has(v)); if (!opts || o.length < opts.length) { pivot = e; opts = o; } }
+    opts.sort((a, b) => [...cov.get(b)].filter(e => left.has(e)).length - [...cov.get(a)].filter(e => left.has(e)).length);
+    for (const v of opts) {
+      const next = new Set(left); for (const e of cov.get(v)) next.delete(e);
+      pick.push(v); dfs(next, pick); pick.pop();
+    }
+  })(left0, []);
+  return new Set([...forced, ...bestPick]);
+}
+let cullCache = { key: "", res: null };
 function cullAnalysis() {
   const vs = S.villagers;
+  const key = JSON.stringify(vs.map(v => [v.id, !!v.fav, v.books]));
+  if (cullCache.key === key) return cullCache.res;
   const alone = vs.filter(v => v.books.every(b => covers(vs.filter(o => o !== v), b.e, b.lvl).length));
-  // ensemble éliminable en une fois : on retire d'abord les moins utiles, en revérifiant à chaque fois
-  let kept = [...vs];
-  const together = [];
-  for (const v of alone.filter(v => !v.fav).sort((a, b) => a.books.length - b.books.length)) {
-    const rest = kept.filter(o => o !== v);
-    if (v.books.every(b => covers(rest, b.e, b.lvl).length)) { kept = rest; together.push(v); }
-  }
-  return { alone, together };
+  const keep = minimalKeep(vs);
+  const together = vs.filter(v => !keep.has(v));
+  cullCache = { key, res: { alone, together, ids: new Set(together.map(v => v.id)) } };
+  return cullCache.res;
 }
 function renderCullCount() {
   const n = cullAnalysis().together.length, b = document.getElementById("cull-count");
