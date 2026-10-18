@@ -1255,7 +1255,8 @@ function villagerSvg(v, opts = {}) {
       <text x="${bx}" y="${py - 10}" text-anchor="middle" font-family="Lilita One" font-size="17" fill="#23304a">${label}</text>
     </g>`;
   }
-  if (!opts.ghost) h += `<text class="vname${v.fav ? " fav" : ""}" x="${(x + L.x) / 2}" y="${Math.max(y, L.y) + 30}">${v.fav ? "★ " : ""}${esc(v.name)}</text>`;
+  // pas de nom sous le bibliothécaire (visible au survol et dans le panneau) ; une étoile pour les favoris
+  if (v.fav && !opts.ghost) h += `<text class="vname fav" x="${(x + L.x) / 2}" y="${Math.max(y, L.y) + 26}">★</text>`;
   h += `</g>`;
   return h;
 }
