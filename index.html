@@ -243,18 +243,11 @@
   .chip.none { background: #fff3dc; color: #a8670a; }
   .chip button { border: 0; background: none; padding: 0 0 0 2px; color: var(--muted); font-size: 16px; line-height: 1; }
   .map-hint {
-    position: absolute; left: 372px; bottom: 16px; right: 80px; z-index: 2; pointer-events: none;
+    position: absolute; left: 372px; bottom: 16px; right: 16px; z-index: 2; pointer-events: none;
     display: flex; flex-wrap: wrap; gap: 8px;
   }
   .map-hint .chip { font-weight: 500; color: #3b4256; }
   .map-wrap.panning svg.map { cursor: grabbing; }
-  .zoom {
-    position: absolute; right: 16px; bottom: 16px; z-index: 3; display: flex; flex-direction: column;
-    background: rgba(255,255,255,.95); border-radius: 12px; box-shadow: 0 2px 8px rgba(20,40,60,.12); overflow: hidden;
-  }
-  .zoom button { width: 38px; height: 36px; border: 0; background: none; font-size: 20px; font-weight: 600; color: #3b4256; display: grid; place-items: center; }
-  .zoom button + button { border-top: 1px solid var(--line); }
-  .zoom button:hover { background: var(--surface-2); }
 
   .vpanel {
     position: absolute; top: 94px; right: 16px; width: 340px; max-width: calc(100% - 32px);
@@ -286,8 +279,7 @@
   }
   .book .bdel { border: 0; background: none; color: var(--faint); font-size: 18px; padding: 2px 6px; border-radius: 6px; }
   .book .bdel:hover { color: var(--red); background: var(--red-soft); }
-  .vall { border: 0; background: none; padding: 6px 2px 0; color: var(--accent); font-size: 12px; font-weight: 700; }
-  .vall:hover { text-decoration: underline; }
+  .vnote { font-size: 11px; color: var(--faint); padding: 4px 2px 0; }
   .vadd select { width: 100%; padding: 9px 10px; font-weight: 600; margin-top: 4px; }
   .vempty { color: var(--muted); font-size: 13px; padding: 12px; border: 1px dashed #d5d9e5; border-radius: 12px; text-align: center; margin-bottom: 6px; }
   .vfoot { display: flex; justify-content: space-between; margin-top: 14px; gap: 8px; }
@@ -433,7 +425,6 @@
     .map-toolbar { left: 12px; top: 12px; right: 86px; }
     .book-btn { top: 12px; right: 12px; width: 56px; height: 56px; }
     .map-hint { display: none; }
-    .zoom { bottom: 82px; right: 12px; }
     .vpanel { top: 80px; left: 10px; right: 10px; width: auto; max-width: none; max-height: 52vh; }
     .stats { grid-template-columns: repeat(2, 1fr); }
     dialog.big { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; }
@@ -473,11 +464,6 @@
     <span class="chip" id="focus-chip" hidden></span>
   </div>
   <div class="map-hint" id="map-hint"></div>
-  <div class="zoom">
-    <button id="zoom-in" aria-label="Zoomer">+</button>
-    <button id="zoom-out" aria-label="Dézoomer">−</button>
-    <button id="zoom-reset" aria-label="Recentrer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
-  </div>
   <div class="vpanel" id="vpanel" hidden></div>
   <div class="tip glass" id="tip" hidden></div>
 </div>
@@ -1370,15 +1356,47 @@ function addVillager(c, r, books = [], dir = 0) {
 
 // clic / glisser : déplacer un villageois, faire défiler la carte, ou placer
 let pan = null;
+// deux doigts : pincer pour zoomer, glisser pour se déplacer
+const touches = new Map();
+let pinch = null, gesture = false;
+function pinchState() {
+  const [a, b] = [...touches.values()];
+  return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+}
+function endGesture(ev) {
+  touches.delete(ev.pointerId);
+  if (touches.size < 2) pinch = null;
+  if (!touches.size) gesture = false;
+}
 svg.addEventListener("pointerdown", ev => {
+  touches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  try { svg.setPointerCapture(ev.pointerId); } catch {}
+  if (touches.size >= 2) {
+    // un 2e doigt annule le glisser en cours et démarre le pincement
+    if (drag) { drag = null; hover = null; renderMapObjects(); renderHover(); }
+    pan = null; mapWrap.classList.remove("panning");
+    pinch = pinchState(); gesture = true;
+    return;
+  }
+  if (gesture) return;
   const p = toSvg(ev.clientX, ev.clientY);
   const g = ev.target.closest("[data-vid]");
   const v = placing ? null : g ? S.villagers.find(x => x.id === +g.dataset.vid) : villagerNear(p.x, p.y);
   if (v) drag = { vid: v.id, sx: ev.clientX, sy: ev.clientY, moved: false, tile: null };
   else pan = { sx: ev.clientX, sy: ev.clientY, cx: view.cx, cy: view.cy, k: view.s, moved: false };
-  svg.setPointerCapture(ev.pointerId);
 });
 svg.addEventListener("pointermove", ev => {
+  if (touches.has(ev.pointerId)) touches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (pinch) {
+    if (touches.size < 2) return;
+    const n = pinchState();
+    view.cx -= (n.mx - pinch.mx) * view.s; view.cy -= (n.my - pinch.my) * view.s; applyView();
+    const c = toSvg(n.mx, n.my);
+    zoomBy(n.d / pinch.d, c.x, c.y);
+    pinch = n;
+    return;
+  }
+  if (gesture) return;
   const p = toSvg(ev.clientX, ev.clientY);
   const t = tileAt(p.x, p.y);
   if (drag) {
@@ -1401,6 +1419,8 @@ svg.addEventListener("pointermove", ev => {
   if (!placing && ev.pointerType !== "touch") showTip(villagerNear(p.x, p.y), ev);
 });
 svg.addEventListener("pointerup", ev => {
+  if (gesture) return endGesture(ev);
+  touches.delete(ev.pointerId);
   const p = toSvg(ev.clientX, ev.clientY);
   if (drag) {
     const v = S.villagers.find(x => x.id === drag.vid);
@@ -1421,7 +1441,7 @@ svg.addEventListener("pointerup", ev => {
   }
   if (selectedVid) selectVillager(null);
 });
-svg.addEventListener("pointercancel", () => { drag = null; pan = null; hover = null; mapWrap.classList.remove("panning"); renderMapObjects(); renderHover(); });
+svg.addEventListener("pointercancel", ev => { endGesture(ev); drag = null; pan = null; hover = null; mapWrap.classList.remove("panning"); renderMapObjects(); renderHover(); });
 svg.addEventListener("pointerleave", () => { showTip(null); if (placing) { hover = null; renderHover(); } });
 svg.addEventListener("pointerdown", () => showTip(null));
 
@@ -1449,9 +1469,6 @@ svg.addEventListener("wheel", ev => {
   const p = toSvg(ev.clientX, ev.clientY);
   zoomBy(Math.exp(-ev.deltaY * 0.0015), p.x, p.y);
 }, { passive: false });
-document.getElementById("zoom-in").onclick = () => zoomBy(1.3);
-document.getElementById("zoom-out").onclick = () => zoomBy(1 / 1.3);
-document.getElementById("zoom-reset").onclick = () => { view.s = 0; applyView(); };
 
 // glisser-déposer d'un livre depuis la liste
 mapWrap.addEventListener("dragover", ev => {
@@ -1473,30 +1490,37 @@ mapWrap.addEventListener("drop", ev => {
   const t = tileAt(p.x, p.y);
   const d = firstDir(t.c, t.r);
   if (d < 0) return toast("Dépose le livre sur un bibliothécaire ou sur 2 cases libres de la zone");
-  addVillager(t.c, t.r, [{ e: id, lvl: owned(id) || e.max }], d);
-  toast(`Nouveau bibliothécaire avec ${fullName(e, owned(id) || e.max)}`);
+  const { added, ...b } = bookFor(id);
+  addVillager(t.c, t.r, [b], d);
+  toast(`Nouveau bibliothécaire avec ${fullName(e, b.lvl)}${added ? " · ajouté à tes livres" : ""}`);
 });
 
+// livre ajouté à un bibliothécaire : ton niveau si tu l'as ; sinon le max, et il passe dans tes livres possédés
+function bookFor(id) {
+  const e = E[id], had = owned(id), lvl = had || e.max;
+  if (!had) S.owned[id] = lvl;
+  return { e: id, lvl, added: !had };
+}
 function assignBook(v, id) {
   const e = E[id];
   if (e.nov) return toast("Cet enchantement n'est pas vendu par les villageois");
   if (v.books.some(b => b.e === id)) { selectVillager(v.id); return toast(`${v.name} propose déjà ${e.name}`); }
-  v.books.push({ e: id, lvl: owned(id) || e.max });
+  const { added, ...b } = bookFor(id);
+  v.books.push(b);
   selectedVid = v.id;
   commit();
-  toast(`${fullName(e, owned(id) || e.max)} → ${v.name}`);
+  toast(`${fullName(e, b.lvl)} → ${v.name}${added ? " · ajouté à tes livres" : ""}`);
 }
 
 // ---- Panneau villageois ----
 function selectVillager(id) { selectedVid = id; renderMapObjects(); renderPanel(); renderHint(); }
-let panelAllBooks = false;
 function renderPanel() {
   const panel = document.getElementById("vpanel");
   const v = S.villagers.find(x => x.id === selectedVid);
   if (!v) { panel.hidden = true; return; }
   panel.hidden = false;
-  // par défaut, on ne propose que les livres que tu possèdes (comme la liste du grimoire)
-  const avail = ENCH.filter(e => !e.nov && !v.books.some(b => b.e === e.id) && (panelAllBooks || owned(e.id)));
+  // deux menus : les livres que tu possèdes, et tous les autres (cochés automatiquement une fois ajoutés)
+  const avail = ENCH.filter(e => !e.nov && !v.books.some(b => b.e === e.id));
   let books = v.books.map((b, i) => {
     const e = E[b.e], cur = owned(b.e), useful = b.lvl > cur;
     const opts = Array.from({ length: e.max }, (_, k) => `<option value="${k + 1}"${k + 1 === b.lvl ? " selected" : ""}>${ROMAN[k + 1]}</option>`).join("");
@@ -1509,10 +1533,11 @@ function renderPanel() {
     </div>`;
   }).join("");
   if (!v.books.length) books = `<div class="vempty">Aucun livre. Glisse-en un depuis la liste ou choisis-le ci-dessous.</div>`;
-  const groups = CATS.map(c => {
-    const list = avail.filter(e => e.cat === c.id);
-    return list.length ? `<optgroup label="${c.name}">${list.map(e => `<option value="${e.id}">${fullName(e, panelAllBooks ? e.max : owned(e.id))}</option>`).join("")}</optgroup>` : "";
+  const groupsOf = list => CATS.map(c => {
+    const l = list.filter(e => e.cat === c.id);
+    return l.length ? `<optgroup label="${c.name}">${l.map(e => `<option value="${e.id}">${fullName(e, owned(e.id) || e.max)}</option>`).join("")}</optgroup>` : "";
   }).join("");
+  const mine = avail.filter(e => owned(e.id)), others = avail.filter(e => !owned(e.id));
   panel.innerHTML = `
     <div class="vpanel-head">
       <div class="vavatar"><svg width="24" height="28" viewBox="-15 -69 30 70">
@@ -1526,9 +1551,11 @@ function renderPanel() {
     </div>
     <div class="vlabel">Livres proposés</div>
     ${books}
-    ${avail.length ? `<div class="vadd"><select id="vadd" aria-label="Ajouter un livre"><option value="">+ Ajouter un livre${panelAllBooks ? "" : " que je possède"}…</option>${groups}</select></div>`
-      : `<div class="vempty">${panelAllBooks ? "Tous les livres sont déjà sur ce bibliothécaire." : "Aucun autre livre coché. Indique ceux que tu possèdes via le livre en haut à droite."}</div>`}
-    <button class="vall" id="vall">${panelAllBooks ? "Seulement mes livres" : "Tous les livres"}</button>
+    <div class="vadd">
+      ${mine.length ? `<select class="vadd-sel" aria-label="Ajouter un livre que je possède"><option value="">+ Ajouter un livre que je possède…</option>${groupsOf(mine)}</select>` : ""}
+      ${others.length ? `<select class="vadd-sel" aria-label="Ajouter un autre livre"><option value="">+ Ajouter un autre livre…</option>${groupsOf(others)}</select>
+      <div class="vnote">Un livre ajouté ici est aussi coché dans tes livres.</div>` : ""}
+    </div>
     <div class="vfoot">
       <button class="btn ghost-danger" id="vdel">Supprimer</button>
       <div>
@@ -1546,9 +1573,7 @@ function renderPanel() {
   };
   panel.querySelectorAll("[data-lvl]").forEach(s => s.onchange = () => { v.books[+s.dataset.lvl].lvl = +s.value; commit(); });
   panel.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { v.books.splice(+b.dataset.del, 1); commit(); });
-  panel.querySelector("#vall").onclick = () => { panelAllBooks = !panelAllBooks; renderPanel(); };
-  const add = panel.querySelector("#vadd");
-  if (add) add.onchange = () => { if (add.value) assignBook(v, add.value); };
+  panel.querySelectorAll(".vadd-sel").forEach(sel => sel.onchange = () => { if (sel.value) assignBook(v, sel.value); });
 }
 
 function renderHint() {
