@@ -443,6 +443,7 @@
   <svg class="map" id="map" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
     <g id="layer-sky"></g>
     <g id="layer-ground"></g>
+    <g id="layer-floor" pointer-events="none"></g>
     <g id="layer-hover"></g>
     <g id="layer-objects"></g>
   </svg>
@@ -1268,7 +1269,30 @@ function villagerSvg(v, opts = {}) {
   return h;
 }
 
+// Plancher en chêne sur le rectangle qui englobe tous les bibliothécaires (et leurs pupitres)
+function renderFloor(list) {
+  const layer = document.getElementById("layer-floor");
+  const tiles = list.flatMap(v => tilesOf(v.c, v.r, v.dir || 0));
+  if (!tiles.length) { layer.innerHTML = ""; return; }
+  const cs = tiles.map(t => t[0]), rs = tiles.map(t => t[1]);
+  const c0 = Math.min(...cs), c1 = Math.max(...cs), r0 = Math.min(...rs), r1 = Math.max(...rs);
+  const P = (gc, gr) => gridPt(gc, gr).join(",");
+  const PLANK = ["#b8935c", "#b08b55", "#bd9a63"];
+  let h = "", lines = "", seams = "";
+  for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+    h += `<polygon points="${P(c, r)} ${P(c + 1, r)} ${P(c + 1, r + 1)} ${P(c, r + 1)}" fill="${PLANK[Math.floor(hash(c * 3, r * 7) * 3)]}"/>`;
+    // 4 planches par bloc, avec un joint décalé sur chacune
+    for (let k = 1; k < 4; k++) lines += `M${P(c, r + k / 4)}L${P(c + 1, r + k / 4)}`;
+    for (let k = 0; k < 4; k++) { const o = [.25, .75, .5, 0][(k + c + r) % 4]; if (o) seams += `M${P(c + o, r + k / 4)}L${P(c + o, r + (k + 1) / 4)}`; }
+  }
+  h += `<path d="${lines}" stroke="#8a6a3d" stroke-width="1.6" opacity=".55"/>`;
+  h += `<path d="${seams}" stroke="#7a5c33" stroke-width="1.4" opacity=".5"/>`;
+  h += `<polygon points="${P(c0, r0)} ${P(c1 + 1, r0)} ${P(c1 + 1, r1 + 1)} ${P(c0, r1 + 1)}" fill="none" stroke="#6b4a26" stroke-width="3" stroke-linejoin="round"/>`;
+  layer.innerHTML = h;
+}
+
 function renderMapObjects() {
+  renderFloor(S.villagers.map(v => drag && drag.moved && drag.vid === v.id && drag.tile ? { ...v, ...drag.tile } : v));
   const objs = [
     ...S.villagers.map(v => {
       const pos = drag && drag.moved && drag.vid === v.id && drag.tile ? drag.tile : v;
