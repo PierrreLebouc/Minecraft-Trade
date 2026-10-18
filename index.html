@@ -1194,12 +1194,15 @@ function lecternSvg(x, y) {
   return box(x, y, .62, 6, WOOD_D) + box(x, y - 6, .26, 20, WOOD) + box(x, y - 26, .72, 6, WOOD)
     + box(x - 2, y - 32, .36, 4, ["#f4ecd8", "#c43d3d", "#a83232"]);
 }
-function villagerBody(x, y) {
+// robe blanche, ou jaune pour un favori
+const ROBE = { normal: ["#f2ede4", "#d9cfbf", "#e3d8c6"], fav: ["#ffd23f", "#e8b417", "#f7c52b"] };
+function villagerBody(x, y, fav) {
+  const [robe, stripe, arms] = fav ? ROBE.fav : ROBE.normal;
   return `<g transform="translate(${x} ${y}) scale(${VS})">
     <ellipse cy="2" rx="16" ry="6" fill="rgba(0,0,0,.25)"/>
-    <rect x="-13" y="-36" width="26" height="37" rx="9" fill="#f2ede4" stroke="#4b3a2c" stroke-width="2.2"/>
-    <rect x="-2" y="-27" width="4" height="26" fill="#d9cfbf"/>
-    <rect x="-15" y="-29" width="30" height="10" rx="5" fill="#e3d8c6" stroke="#4b3a2c" stroke-width="2"/>
+    <rect x="-13" y="-36" width="26" height="37" rx="9" fill="${robe}" stroke="#4b3a2c" stroke-width="2.2"/>
+    <rect x="-2" y="-27" width="4" height="26" fill="${stripe}"/>
+    <rect x="-15" y="-29" width="30" height="10" rx="5" fill="${arms}" stroke="#4b3a2c" stroke-width="2"/>
     <rect x="-12" y="-63" width="24" height="28" rx="8" fill="#e9b88f" stroke="#4b3a2c" stroke-width="2.2"/>
     <rect x="-13.5" y="-67" width="27" height="10" rx="5" fill="#c4473c" stroke="#4b3a2c" stroke-width="2"/>
     <rect x="-9" y="-54" width="18" height="3.5" rx="1.5" fill="#5a3a22"/>
@@ -1221,14 +1224,10 @@ function villagerSvg(v, opts = {}) {
   // socle sur les 2 cases
   h += `<polygon points="${footprint(v.c, v.r, dir, .06)}" fill="#c9b78f" stroke="#9c8a63" stroke-width="2"/>`;
   h += `<polygon points="${footprint(v.c, v.r, dir, .16)}" fill="#ddd0ae"/>`;
-  if (v.fav && !opts.ghost) {
-    h += `<polygon class="fav-glow" points="${footprint(v.c, v.r, dir, -.28)}" fill="rgba(255,200,40,.28)" stroke="none"/>`;
-    h += `<polygon points="${footprint(v.c, v.r, dir, -.1)}" fill="rgba(255,196,0,.35)" stroke="#ffb300" stroke-width="4" stroke-linejoin="round"/>`;
-  }
   if (sel) h += `<polygon class="sel-ring" points="${footprint(v.c, v.r, dir, -.02)}" fill="none" stroke="#fff" stroke-width="4" stroke-linejoin="round"/>`;
   else if (focusEnch && !dim) h += `<polygon class="sel-ring" points="${footprint(v.c, v.r, dir, -.04)}" fill="rgba(167,139,250,.25)" stroke="#8b6cff" stroke-width="5" stroke-linejoin="round"/>`;
   // ordre d'affichage : ce qui est derrière d'abord
-  const parts = [[v.c + v.r, villagerBody(x, y)], [lc + lr, lecternSvg(L.x, L.y)]].sort((a, b) => a[0] - b[0]);
+  const parts = [[v.c + v.r, villagerBody(x, y, v.fav)], [lc + lr, lecternSvg(L.x, L.y)]].sort((a, b) => a[0] - b[0]);
   h += parts.map(p => p[1]).join("");
   // bulle de livres au-dessus de la tête
   const bx = x, by = y - 30 * VS;
@@ -1255,8 +1254,7 @@ function villagerSvg(v, opts = {}) {
       <text x="${bx}" y="${py - 10}" text-anchor="middle" font-family="Lilita One" font-size="17" fill="#23304a">${label}</text>
     </g>`;
   }
-  // pas de nom sous le bibliothécaire (visible au survol et dans le panneau) ; une étoile pour les favoris
-  if (v.fav && !opts.ghost) h += `<text class="vname fav" x="${(x + L.x) / 2}" y="${Math.max(y, L.y) + 26}">★</text>`;
+  // pas de nom sous le bibliothécaire : il est visible au survol et dans le panneau
   h += `</g>`;
   return h;
 }
