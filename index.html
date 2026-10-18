@@ -93,10 +93,6 @@
     background-size: 250% 100%; animation: glint 3.2s linear infinite;
   }
   @keyframes glint { from { background-position: 150% 0; } to { background-position: -100% 0; } }
-  .book-btn .badge {
-    position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
-    font-size: 10px; font-weight: 800; color: #fff; background: rgba(0,0,0,.35); padding: 0 6px; border-radius: 99px; white-space: nowrap;
-  }
 
   /* ---------- Buttons ---------- */
   .btn {
@@ -519,7 +515,6 @@
     <rect x="6" y="7" width="3" height="1" fill="#fff"/><rect x="4" y="10" width="7" height="1" fill="#ffd84a"/>
     <rect x="1" y="1" width="1" height="1" fill="#fff"/><rect x="14" y="1" width="1" height="1" fill="#ffd84a"/>
   </svg>
-  <span class="badge" id="book-badge">0/42</span>
 </button>
 
 <!-- ============ Pop-up enchantements ============ -->
@@ -725,7 +720,6 @@ function renderStats() {
   document.getElementById("st-low").textContent = low;
   document.getElementById("st-miss").textContent = miss;
   document.getElementById("st-vill").textContent = vill;
-  document.getElementById("book-badge").textContent = `${max}/${ENCH.length}`;
 }
 
 // ================= Onglet Enchantements =================
