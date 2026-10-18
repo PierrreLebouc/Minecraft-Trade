@@ -121,6 +121,13 @@
   .brand-logo { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: linear-gradient(135deg, #7b5cff, #3fa2f0); }
   .side-head p { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
   .sheet-toggle { display: none; }
+  .sync { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: var(--muted); padding: 2px 8px; border-radius: 99px; background: #f1f2f5; letter-spacing: 0; }
+  .sync i { width: 7px; height: 7px; border-radius: 50%; background: #a3a9ba; }
+  .sync.ok { color: #137a48; background: var(--green-soft); } .sync.ok i { background: var(--green); }
+  .sync.saving { color: #a8670a; background: var(--amber-soft); } .sync.saving i { background: var(--amber); }
+  .sync.error { color: #b23b3b; background: var(--red-soft); } .sync.error i { background: var(--red); }
+  .token-input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); margin-bottom: 16px; outline: none; }
+  .token-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
   .side-seg { margin-top: 10px; flex-wrap: nowrap; }
   .side-seg button { flex: 1; }
   .side-seg span { font-size: 11px; color: var(--faint); }
@@ -479,6 +486,7 @@
     <div class="brand">
       <div class="brand-logo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg></div>
       Grimoire
+      <span class="sync local" id="sync" title="Données enregistrées seulement sur cet appareil"><i></i><span>Local</span></span>
       <span class="sheet-toggle" id="sheet-toggle">Livres</span>
     </div>
     <p>Glisse un livre sur un bibliothécaire, ou sur l'herbe pour en créer un.</p>
@@ -583,6 +591,18 @@
   </div>
 </dialog>
 
+<dialog id="token-dlg">
+  <form class="dlg" method="dialog" id="token-form">
+    <h3>Code d'édition</h3>
+    <p>Ce site est protégé : entre le code pour enregistrer tes modifications. Il sera mémorisé sur cet appareil.</p>
+    <input class="token-input" id="token-input" type="password" autocomplete="current-password" placeholder="Code" required>
+    <div class="dlg-foot">
+      <button class="btn" type="button" id="token-no">Annuler</button>
+      <button class="btn primary" type="submit">Valider</button>
+    </div>
+  </form>
+</dialog>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -661,7 +681,8 @@ function migrate(st) {
   return st;
 }
 migrate(S);
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
+// copie locale (cache hors ligne) + envoi au serveur partagé
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} queueUpload(); };
 const owned = id => S.owned[id] || 0;
 const offers = id => S.villagers.flatMap(v => v.books.filter(b => b.e === id).map(b => ({ v, lvl: b.lvl })));
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1533,7 +1554,7 @@ function renderHint() {
 }
 
 document.addEventListener("keydown", ev => {
-  if (dlg.open || enchDlg.open || cullDlg.open || askDlg.open || ev.target.closest("input, select, textarea")) return;
+  if (dlg.open || enchDlg.open || cullDlg.open || askDlg.open || tokenDlg.open || ev.target.closest("input, select, textarea")) return;
   if (ev.key === "Escape") { if (placing) setPlacing(false); else if (selectedVid) selectVillager(null); }
   if (ev.key === "r" || ev.key === "R") {
     if (placing) { placeDir = (placeDir + 1) % 4; renderHover(); }
@@ -1565,7 +1586,7 @@ document.getElementById("file").onchange = async ev => {
 };
 document.getElementById("reset").onclick = async () => {
   menu.hidden = true;
-  if (await ask("Tous les enchantements cochés et tous les bibliothécaires seront effacés.", "Tout effacer", "Tout réinitialiser ?")) { S = { owned: {}, villagers: [], seq: 1, mapV: 2 }; selectedVid = null; commit(); }
+  if (await ask("Tous les enchantements cochés et tous les bibliothécaires seront effacés, sur tous les appareils.", "Tout effacer", "Tout réinitialiser ?")) { S = { owned: {}, villagers: [], seq: 1, mapV: 2 }; selectedVid = null; commit(); }
 };
 
 const askDlg = document.getElementById("ask-dlg");
@@ -1658,8 +1679,99 @@ cullDlg.addEventListener("click", ev => { if (ev.target === cullDlg) cullDlg.clo
 
 function renderAll() { renderFavChip(); renderCullCount(); renderStats(); renderEnchants(); renderSide(); renderMapObjects(); renderPanel(); renderFocusChip(); renderHint(); }
 
+// ================= Synchronisation entre appareils =================
+// L'état est stocké côté serveur (Cloudflare Pages Function + KV, voir functions/api/state.js).
+// Chaque modification est envoyée ; les autres appareils la récupèrent en interrogeant le serveur.
+const API = "/api/state", TOKEN_KEY = "grimoire-edit-token";
+const sync = { on: false, remoteAt: 0, dirty: 0, timer: null, busy: false };
+const SYNC_LABEL = { ok: "Synchronisé", saving: "Envoi…", error: "Hors ligne", local: "Local" };
+function setSync(st, title) {
+  const el = document.getElementById("sync");
+  el.className = "sync " + st;
+  el.querySelector("span").textContent = SYNC_LABEL[st];
+  el.title = title || { ok: "Mêmes données sur tous tes appareils", saving: "Enregistrement en cours", error: "Serveur injoignable : nouvel essai automatique", local: "Données enregistrées seulement sur cet appareil" }[st];
+}
+function queueUpload() {
+  if (!sync.on) return;
+  sync.dirty++; setSync("saving");
+  clearTimeout(sync.timer); sync.timer = setTimeout(upload, 600);
+}
+const getToken = () => { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; } };
+async function upload() {
+  if (sync.busy) { sync.timer = setTimeout(upload, 400); return; }
+  sync.busy = true;
+  const mark = sync.dirty;
+  try {
+    const res = await fetch(API, { method: "PUT", headers: { "content-type": "application/json", "x-edit-token": getToken() }, body: JSON.stringify({ state: S }) });
+    if (res.status === 401) {
+      sync.busy = false;
+      const t = await askToken();
+      if (t) { try { localStorage.setItem(TOKEN_KEY, t); } catch {} return upload(); }
+      return setSync("error", "Modifications non enregistrées sur le serveur : code d'édition requis");
+    }
+    if (!res.ok) throw new Error(res.status);
+    sync.remoteAt = (await res.json()).updatedAt;
+    if (sync.dirty === mark) { sync.dirty = 0; setSync("ok"); }
+  } catch {
+    setSync("error");
+    clearTimeout(sync.timer); sync.timer = setTimeout(upload, 5000);
+  } finally { sync.busy = false; }
+}
+function adopt(d) {
+  sync.remoteAt = d.updatedAt;
+  const st = d.state;
+  st.owned ||= {}; st.villagers ||= []; st.seq ||= 1;
+  S = migrate(st);
+  for (const v of S.villagers) if (v.dir == null) v.dir = 0;
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {}
+  if (!S.villagers.some(v => v.id === selectedVid)) selectedVid = null;
+  renderAll();
+}
+async function pull() {
+  // pas de mise à jour pendant une modification en cours (envoi, glisser, saisie dans le panneau)
+  if (!sync.on || sync.dirty || sync.busy || drag || placing || document.hidden || document.activeElement?.closest?.("#vpanel")) return;
+  try {
+    const res = await fetch(API, { cache: "no-store" });
+    if (!res.ok) throw new Error(res.status);
+    const d = await res.json();
+    if (sync.dirty) return;
+    if (d.state && d.updatedAt > sync.remoteAt) adopt(d);
+    setSync("ok");
+  } catch { setSync("error"); }
+}
+const tokenDlg = document.getElementById("token-dlg");
+function askToken() {
+  const input = document.getElementById("token-input");
+  input.value = "";
+  tokenDlg.showModal();
+  return new Promise(resolve => {
+    const done = v => { tokenDlg.close(); resolve(v); };
+    document.getElementById("token-form").onsubmit = ev => { ev.preventDefault(); done(input.value.trim() || null); };
+    document.getElementById("token-no").onclick = () => done(null);
+    tokenDlg.oncancel = ev => { ev.preventDefault(); done(null); };
+  });
+}
+async function startSync() {
+  if (location.protocol === "file:") return setSync("local", "Ouvre le site en ligne pour partager les données entre appareils");
+  let d;
+  try {
+    const res = await fetch(API, { cache: "no-store" });
+    if (res.status === 503) return setSync("local", "Stockage partagé non configuré sur Cloudflare (KV GRIMOIRE)");
+    if (!res.ok || !(res.headers.get("content-type") || "").includes("json")) return setSync("local");
+    d = await res.json();
+  } catch { return setSync("local"); }
+  sync.on = true;
+  if (d.state) { adopt(d); setSync("ok"); }
+  else if (S.villagers.length || Object.keys(S.owned).length) queueUpload(); // premier appareil : il envoie ses données
+  else setSync("ok");
+  setInterval(pull, 8000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) pull(); });
+  addEventListener("focus", pull);
+}
+
 drawSky(); drawGround();
 renderAll();
+startSync();
 </script>
 </body>
 </html>
