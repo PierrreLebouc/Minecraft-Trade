@@ -2,6 +2,9 @@
 // Liaisons attendues (Paramètres du projet Pages → Liaisons / Variables) :
 //   - KV namespace lié sous le nom GRIMOIRE
 //   - EDIT_TOKEN (facultatif) : si défini, il faut ce code pour modifier l'état
+//     (ou une session d'édition ouverte depuis le Hub, voir api/sso.js)
+
+import { hasEditSession } from "../../edit-session.js";
 
 const KEY = "state";
 const MAX_BYTES = 512 * 1024;
@@ -27,7 +30,7 @@ export async function onRequestGet({ env }) {
 
 export async function onRequestPut({ request, env }) {
   if (!env.GRIMOIRE) return json({ error: "KV GRIMOIRE non configuré" }, 503);
-  if (env.EDIT_TOKEN && request.headers.get("x-edit-token") !== env.EDIT_TOKEN) {
+  if (env.EDIT_TOKEN && request.headers.get("x-edit-token") !== env.EDIT_TOKEN && !(await hasEditSession(request, env.EDIT_TOKEN))) {
     return json({ error: "Code d'édition invalide" }, 401);
   }
   const text = await request.text();

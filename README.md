@@ -31,3 +31,7 @@ Suivi des enchantements Minecraft Bedrock et organisation d'un breeder à villag
 - **Local** : site ouvert en fichier local, ou stockage `GRIMOIRE` pas encore lié ; les données restent sur cet appareil
 
 Les autres appareils récupèrent les changements en quelques secondes. Le stockage KV de Cloudflare peut parfois mettre jusqu'à une minute à propager une modification entre régions.
+
+## Connexion depuis le Hub
+
+Ouvert depuis le Hub (page Outils, case « Connexion automatique » cochée), le Grimoire arrive par `/api/sso?token=…` : le jeton signé par le Hub est vérifié avec sa clé publique (incluse dans `hub-sso.js`), puis un cookie d'édition de 30 jours est posé sur l'appareil. Plus besoin de taper le code d'édition. Rien à configurer ; seul le compte `pierre.lebouc@etik.com` est accepté (variable `HUB_EMAIL` pour en changer).
